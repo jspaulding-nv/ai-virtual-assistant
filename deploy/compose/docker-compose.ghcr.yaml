@@ -1,0 +1,24 @@
+services:
+  agent-chain-server:
+    image: ghcr.io/${GHCR_OWNER:-jspaulding-nv}/${GHCR_IMAGE_PREFIX:-aiva-customer-service}-agent:${GHCR_TAG:-nemotron3-milvus-cpu}
+    build: !reset null
+
+  api-gateway-server:
+    image: ghcr.io/${GHCR_OWNER:-jspaulding-nv}/${GHCR_IMAGE_PREFIX:-aiva-customer-service}-api-gateway:${GHCR_TAG:-nemotron3-milvus-cpu}
+    build: !reset null
+
+  agent-frontend:
+    image: ghcr.io/${GHCR_OWNER:-jspaulding-nv}/${GHCR_IMAGE_PREFIX:-aiva-customer-service}-ui:${GHCR_TAG:-nemotron3-milvus-cpu}
+    build: !reset null
+
+  analytics-server:
+    image: ghcr.io/${GHCR_OWNER:-jspaulding-nv}/${GHCR_IMAGE_PREFIX:-aiva-customer-service}-analytics:${GHCR_TAG:-nemotron3-milvus-cpu}
+    build: !reset null
+
+  structured-retriever:
+    image: ghcr.io/${GHCR_OWNER:-jspaulding-nv}/${GHCR_IMAGE_PREFIX:-aiva-customer-service}-structured-retriever:${GHCR_TAG:-nemotron3-milvus-cpu}
+    build: !reset null
+
+  unstructured-retriever:
+    image: ghcr.io/${GHCR_OWNER:-jspaulding-nv}/${GHCR_IMAGE_PREFIX:-aiva-customer-service}-unstructured-retriever:${GHCR_TAG:-nemotron3-milvus-cpu}
+    build: !reset null

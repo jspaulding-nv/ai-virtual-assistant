@@ -271,7 +271,7 @@ prepare_launchable_env() {
   if [[ -z "${nvidia_key}" && -n "${ngc_key}" ]]; then
     nvidia_key="${ngc_key}"
   fi
-  if [[ -z "${ngc_key}" && -n "${nvidia_key}" ]]; then
+  if [[ -z "${ngc_key}" && -n "${nvidia_key}" && "${USE_GHCR_IMAGES:-0}" != "1" ]]; then
     ngc_key="${nvidia_key}"
     log "NGC_API_KEY is not set; using NVIDIA_API_KEY for nvcr.io login. This only works if that key is an NGC personal key."
   fi
@@ -288,6 +288,11 @@ prepare_launchable_env() {
     printf 'NGC_API_KEY=%s\n' "${ngc_key}"
     printf 'APP_LLM_MODELNAME=nvidia/nemotron-3-nano-30b-a3b\n'
     printf 'APP_VECTORSTORE_INDEXTYPE=IVF_FLAT\n'
+    if [[ "${USE_GHCR_IMAGES:-0}" == "1" ]]; then
+      printf 'GHCR_OWNER=%s\n' "${GHCR_OWNER:-jspaulding-nv}"
+      printf 'GHCR_IMAGE_PREFIX=%s\n' "${GHCR_IMAGE_PREFIX:-aiva-customer-service}"
+      printf 'GHCR_TAG=%s\n' "${GHCR_TAG:-nemotron3-milvus-cpu}"
+    fi
   } > "${REPO_DIR}/.env.launchable"
 
   export NVIDIA_API_KEY="${nvidia_key}"
@@ -299,22 +304,54 @@ start_compose_stack() {
     return 1
   fi
 
-  log "Authenticating Docker with nvcr.io."
-  if ! printf '%s' "${NGC_API_KEY}" | docker_cmd login nvcr.io -u '$oauthtoken' --password-stdin; then
-    log "Docker login failed. Jupyter is running, but Docker Compose startup was skipped."
-    return 1
+  local compose_files=(
+    -f "${REPO_DIR}/deploy/compose/docker-compose.yaml"
+  )
+  local compose_up_args=(
+    up -d --build
+  )
+
+  if [[ "${USE_GHCR_IMAGES:-0}" == "1" && -f "${REPO_DIR}/deploy/compose/docker-compose.ghcr.yaml" ]]; then
+    compose_files+=(
+      -f "${REPO_DIR}/deploy/compose/docker-compose.ghcr.yaml"
+    )
+    compose_up_args=(
+      up -d --no-build
+    )
+
+    if [[ -n "${GHCR_USER:-}" && -n "${GHCR_TOKEN:-}" ]]; then
+      log "Authenticating Docker with ghcr.io."
+      if ! printf '%s' "${GHCR_TOKEN}" | docker_cmd login ghcr.io -u "${GHCR_USER}" --password-stdin; then
+        log "GHCR login failed. Jupyter is running, but Docker Compose startup was skipped."
+        return 1
+      fi
+    else
+      log "GHCR credentials are not set; assuming the GHCR images are public or Docker is already authenticated."
+    fi
+
+    log "Pulling prebuilt GHCR app images."
+    if ! docker_cmd compose --env-file "${REPO_DIR}/.env.launchable" "${compose_files[@]}" pull; then
+      log "GHCR image pull failed. Jupyter is running, but Docker Compose startup was skipped."
+      return 1
+    fi
+  else
+    log "Authenticating Docker with nvcr.io."
+    if ! printf '%s' "${NGC_API_KEY}" | docker_cmd login nvcr.io -u '$oauthtoken' --password-stdin; then
+      log "Docker login failed. Jupyter is running, but Docker Compose startup was skipped."
+      return 1
+    fi
   fi
 
   log "Starting the hosted-NIM Docker Compose stack with CPU Milvus."
   if ! docker_cmd compose --env-file "${REPO_DIR}/.env.launchable" \
-    -f "${REPO_DIR}/deploy/compose/docker-compose.yaml" \
-    up -d --build; then
+    "${compose_files[@]}" \
+    "${compose_up_args[@]}"; then
     log "Docker Compose startup failed. Check ${LOG_FILE} and Docker logs for details."
     return 1
   fi
 
   docker_cmd compose --env-file "${REPO_DIR}/.env.launchable" \
-    -f "${REPO_DIR}/deploy/compose/docker-compose.yaml" \
+    "${compose_files[@]}" \
     ps || true
 }
 

@@ -273,6 +273,28 @@ docker compose -f deploy/compose/docker-compose.yaml build <container name>
 ```
 The container name can be determined from the docker-compose file.
 
+To speed up lab environments, you can build the app images once on an `x86_64` machine and publish them to GitHub Container Registry (GHCR). The script below stops the stack, optionally prunes unused local images and build cache, rebuilds the six app images, starts the stack, waits for health checks, and pushes only the locally built app images to GHCR. Runtime secrets such as `NVIDIA_API_KEY` stay in the env file and are not baked into the images.
+
+```bash
+cd $REPO_ROOT
+GHCR_USER=<github-user> \
+GHCR_TOKEN=<github-token-with-write-packages> \
+./deploy/compose/publish-ghcr.sh --prune-all-images
+```
+
+Once those images are public or the user is authenticated to GHCR, lab users can skip local builds:
+
+```bash
+cd $REPO_ROOT
+GHCR_OWNER=jspaulding-nv GHCR_TAG=nemotron3-milvus-cpu \
+docker compose --env-file .env.launchable \
+  -f deploy/compose/docker-compose.yaml \
+  -f deploy/compose/docker-compose.ghcr.yaml \
+  up -d --no-build
+```
+
+For NVIDIA Brev Launchables, set `USE_GHCR_IMAGES=1` after the GHCR images are published. The startup script will pull the prebuilt app images and start Compose with `--no-build`.
+
 #### Start the Docker containers
 
 There are two supported configurations for starting the Docker containers.
@@ -366,8 +388,12 @@ pip install jupyterlab
 
 **Use this command to run Jupyter Lab so that you can execute this IPython notebook**
 ```bash
-jupyter lab --allow-root --ip=0.0.0.0 --NotebookApp.token='' --port=8889
+jupyter lab --allow-root --ip=0.0.0.0 --ServerApp.token='' --ServerApp.default_url='/lab/tree/notebooks/deploy_hosted_nims.ipynb' --port=8889
 ```
+
+**Execute the deploy_hosted_nims.ipynb notebook**
+
+Jupyter Lab opens the hosted NIM deployment notebook by default. Follow the cells in `notebooks/deploy_hosted_nims.ipynb` to deploy the Docker Compose services, then continue to `notebooks/ingest_data.ipynb`.
 
 **Execute the ingest_data.ipynb notebook**
 
