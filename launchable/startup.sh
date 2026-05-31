@@ -181,18 +181,93 @@ stop_influxdb_if_present() {
   fi
 }
 
+configure_jupyter_workspace() {
+  local notebook_path="$1"
+  local workspace_file="${HOME}/aiva-jupyterlab-default-workspace.json"
+  local widget_id="notebook:${notebook_path}:Notebook"
+
+  cat > "${workspace_file}" <<JSON
+{
+  "data": {
+    "${widget_id}": {
+      "data": {
+        "path": "${notebook_path}",
+        "factory": "Notebook"
+      }
+    },
+    "layout-restorer:data": {
+      "main": {
+        "dock": {
+          "type": "tab-area",
+          "currentIndex": 0,
+          "widgets": [
+            "${widget_id}"
+          ]
+        },
+        "mode": "multiple-document"
+      },
+      "down": {
+        "size": 0,
+        "widgets": []
+      },
+      "left": {
+        "collapsed": false,
+        "current": "filebrowser",
+        "widgets": [
+          "filebrowser",
+          "running-sessions",
+          "table-of-contents"
+        ]
+      },
+      "right": {
+        "collapsed": true,
+        "widgets": []
+      },
+      "relativeSizes": [
+        0.23,
+        0.77,
+        0
+      ]
+    }
+  },
+  "metadata": {
+    "id": "/lab"
+  }
+}
+JSON
+
+  if jupyter lab workspaces import "${workspace_file}" >/dev/null 2>&1; then
+    log "Configured JupyterLab default workspace to open ${notebook_path}."
+  else
+    log "Could not import the JupyterLab default workspace; continuing with URL defaults."
+  fi
+}
+
 start_jupyter() {
   local default_url="/lab"
-  local notebook_root="${REPO_DIR}"
+  local notebook_root="${HOME}"
+  local repo_path_for_jupyter="${REPO_DIR#${HOME}/}"
+  local default_notebook=""
+
+  if [[ "${repo_path_for_jupyter}" == "${REPO_DIR}" ]]; then
+    notebook_root="${REPO_DIR}"
+    repo_path_for_jupyter=""
+  fi
 
   if [[ -f "${REPO_DIR}/deploy/ai_virtual_assistant_notebook.ipynb" ]]; then
     cp -f "${REPO_DIR}/deploy/ai_virtual_assistant_notebook.ipynb" "${HOME}/ai_virtual_assistant_notebook.ipynb"
   fi
 
   if [[ -f "${REPO_DIR}/notebooks/deploy_hosted_nims.ipynb" ]]; then
-    default_url="/lab/tree/notebooks/deploy_hosted_nims.ipynb"
+    default_notebook="${repo_path_for_jupyter:+${repo_path_for_jupyter}/}notebooks/deploy_hosted_nims.ipynb"
+    default_url="/lab/tree/${default_notebook}"
   elif [[ -f "${REPO_DIR}/notebooks/ingest_data.ipynb" ]]; then
-    default_url="/lab/tree/notebooks/ingest_data.ipynb"
+    default_notebook="${repo_path_for_jupyter:+${repo_path_for_jupyter}/}notebooks/ingest_data.ipynb"
+    default_url="/lab/tree/${default_notebook}"
+  fi
+
+  if [[ -n "${default_notebook}" ]]; then
+    configure_jupyter_workspace "${default_notebook}"
   fi
 
   if pgrep -f "jupyter.*8889" >/dev/null 2>&1; then
@@ -208,6 +283,7 @@ start_jupyter() {
     --ip=0.0.0.0 \
     --port=8889 \
     --ServerApp.root_dir="${notebook_root}" \
+    --notebook-dir="${notebook_root}" \
     --ServerApp.default_url="${default_url}" \
     --LabApp.default_url="${default_url}" \
     --ServerApp.token='' \
