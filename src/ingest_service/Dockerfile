@@ -13,7 +13,7 @@ RUN apt update && \
     apt update && apt install -y python3.10 python3.10-dev python3.10-distutils wget && \
     apt-get clean
 
-# Install pip3 for python3.10
+# Install pip for python3.10
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
 
 RUN rm -rf /var/lib/apt/lists/*
@@ -39,7 +39,7 @@ COPY ./src/ingest_service /opt/
 # RUN apt autoremove -y software-properties-common
 
 # Install the ingestion script dependencies within the containers
-RUN pip3 install --no-cache-dir -r /opt/requirements.txt
+RUN python3.10 -m pip install --no-cache-dir -r /opt/requirements.txt
 
 WORKDIR /opt
 RUN bash data/download.sh data/list_manuals.txt

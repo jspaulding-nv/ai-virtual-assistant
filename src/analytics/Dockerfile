@@ -40,7 +40,7 @@ COPY src/common /opt/src/common
 # Copy and Install analytics specific modules
 COPY src/analytics /opt/src/analytics
 RUN --mount=type=bind,source=src/analytics/requirements.txt,target=/opt/analytics/requirements.txt \
-    pip3 install --no-cache-dir -r /opt/analytics/requirements.txt
+    python3.10 -m pip install --no-cache-dir -r /opt/analytics/requirements.txt
 
 WORKDIR /opt
 ENTRYPOINT ["uvicorn", "src.analytics.server:app"]

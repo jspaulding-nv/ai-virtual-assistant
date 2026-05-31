@@ -36,7 +36,7 @@ COPY LICENSE-3rd-party.txt /legal/
 
 # Install common dependencies for all servers
 RUN --mount=type=bind,source=src/api_gateway/requirements.txt,target=/opt/requirements_api_server.txt \
-    pip3 install --no-cache-dir -r /opt/requirements_api_server.txt
+    python3.10 -m pip install --no-cache-dir -r /opt/requirements_api_server.txt
 
 # Copy required common modules
 COPY src/api_gateway/main.py /opt/api_server.py

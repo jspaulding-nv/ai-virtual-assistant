@@ -13,26 +13,23 @@ export PATH="${PATH}:${HOME}/.local/bin"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="${REPO_DIR:-}"
-
-if [[ -z "${REPO_DIR}" ]]; then
-  for candidate in \
-    "${HOME}/ai-virtual-assistant" \
-    "/home/ubuntu/ai-virtual-assistant" \
-    "$(cd -- "${SCRIPT_DIR}/.." && pwd)"; do
-    if [[ -f "${candidate}/deploy/compose/docker-compose.yaml" ]]; then
-      REPO_DIR="${candidate}"
-      break
-    fi
-  done
+REPO_URL="${REPO_URL:-${GIT_REPO_URL:-}}"
+REPO_BRANCH="${REPO_BRANCH:-${GIT_BRANCH:-}}"
+if [[ -z "${REPO_URL}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
+  REPO_URL="https://github.com/${GITHUB_REPOSITORY}.git"
 fi
-
-if [[ -z "${REPO_DIR}" || ! -f "${REPO_DIR}/deploy/compose/docker-compose.yaml" ]]; then
-  log "Could not find the ai-virtual-assistant repository. Set REPO_DIR and rerun this script."
-  exit 1
+REPO_URL="${REPO_URL:-https://github.com/jspaulding-nv/ai-virtual-assistant.git}"
+if [[ "${REPO_URL}" == https://github.com/*/tree/* ]]; then
+  branch_from_url="${REPO_URL#*/tree/}"
+  branch_from_url="${branch_from_url%%/*}"
+  REPO_URL="${REPO_URL%%/tree/*}.git"
+  REPO_BRANCH="${REPO_BRANCH:-${branch_from_url}}"
 fi
-
-cd "${REPO_DIR}"
-log "Using repository: ${REPO_DIR}"
+if [[ "${REPO_URL}" == https://github.com/* && "${REPO_URL}" != *.git ]]; then
+  REPO_URL="${REPO_URL}.git"
+fi
+REPO_BRANCH="${REPO_BRANCH:-nemotron3-milvus-cpu}"
+REPO_WAIT_SECONDS="${REPO_WAIT_SECONDS:-180}"
 
 apt_install() {
   if ! command -v apt-get >/dev/null 2>&1; then
@@ -42,6 +39,118 @@ apt_install() {
 
   sudo apt-get update
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
+}
+
+find_repo_dir() {
+  local candidate
+
+  if [[ -n "${REPO_DIR}" && -f "${REPO_DIR}/deploy/compose/docker-compose.yaml" ]]; then
+    printf '%s\n' "${REPO_DIR}"
+    return 0
+  fi
+
+  for candidate in \
+    "${HOME}/ai-virtual-assistant" \
+    "${HOME}/workspace/ai-virtual-assistant" \
+    "${HOME}/workspaces/ai-virtual-assistant" \
+    "${HOME}/brev/ai-virtual-assistant" \
+    "/home/ubuntu/ai-virtual-assistant" \
+    "$(cd -- "${SCRIPT_DIR}/.." && pwd)"; do
+    if [[ -f "${candidate}/deploy/compose/docker-compose.yaml" ]]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+
+  local root
+  local found
+
+  for root in "${HOME}" /workspace /workspaces; do
+    if [[ ! -d "${root}" ]]; then
+      continue
+    fi
+
+    found="$(find "${root}" -maxdepth 4 \
+      -path '*/deploy/compose/docker-compose.yaml' \
+      -print -quit 2>/dev/null || true)"
+    if [[ -n "${found}" ]]; then
+      printf '%s\n' "${found%/deploy/compose/docker-compose.yaml}"
+      return 0
+    fi
+  done
+}
+
+ensure_git() {
+  if command -v git >/dev/null 2>&1; then
+    return
+  fi
+
+  log "Installing git."
+  apt_install git
+}
+
+ensure_repo_branch() {
+  local current_branch
+
+  if [[ ! -d "${REPO_DIR}/.git" ]]; then
+    return 0
+  fi
+
+  cd "${REPO_DIR}"
+  current_branch="$(git branch --show-current 2>/dev/null || true)"
+  if [[ "${current_branch}" == "${REPO_BRANCH}" ]]; then
+    return 0
+  fi
+
+  log "Checking out repository branch ${REPO_BRANCH}."
+  if ! git fetch origin "${REPO_BRANCH}" --depth=1; then
+    log "Failed to fetch branch ${REPO_BRANCH} from origin."
+    return 1
+  fi
+  git checkout -B "${REPO_BRANCH}" "origin/${REPO_BRANCH}"
+}
+
+resolve_repo_dir() {
+  local deadline
+  local found
+
+  deadline=$((SECONDS + REPO_WAIT_SECONDS))
+  while (( SECONDS < deadline )); do
+    found="$(find_repo_dir || true)"
+    if [[ -n "${found}" ]]; then
+      REPO_DIR="${found}"
+      if ! ensure_repo_branch; then
+        return 1
+      fi
+      cd "${REPO_DIR}"
+      log "Using repository: ${REPO_DIR}"
+      return 0
+    fi
+
+    log "Waiting for the ai-virtual-assistant repository checkout..."
+    sleep 10
+  done
+
+  ensure_git
+  REPO_DIR="${REPO_DIR:-${HOME}/ai-virtual-assistant}"
+  if [[ ! -d "${REPO_DIR}/.git" ]]; then
+    log "Repository was not found after ${REPO_WAIT_SECONDS}s; cloning ${REPO_URL} branch ${REPO_BRANCH} into ${REPO_DIR}."
+    if ! git clone --branch "${REPO_BRANCH}" --single-branch "${REPO_URL}" "${REPO_DIR}"; then
+      log "Git clone failed. Set REPO_DIR or REPO_URL and rerun this script."
+      return 1
+    fi
+  fi
+
+  if [[ ! -f "${REPO_DIR}/deploy/compose/docker-compose.yaml" ]]; then
+    log "Could not find deploy/compose/docker-compose.yaml in ${REPO_DIR}."
+    return 1
+  fi
+
+  if ! ensure_repo_branch; then
+    return 1
+  fi
+  cd "${REPO_DIR}"
+  log "Using repository: ${REPO_DIR}"
 }
 
 ensure_python_tools() {
@@ -68,8 +177,16 @@ stop_influxdb_if_present() {
 }
 
 start_jupyter() {
+  local default_url="/lab"
+
   if [[ -f "${REPO_DIR}/deploy/ai_virtual_assistant_notebook.ipynb" ]]; then
     cp -f "${REPO_DIR}/deploy/ai_virtual_assistant_notebook.ipynb" "${HOME}/ai_virtual_assistant_notebook.ipynb"
+  fi
+
+  if [[ -f "${REPO_DIR}/notebooks/deploy_hosted_nims.ipynb" ]]; then
+    default_url="/lab/tree/notebooks/deploy_hosted_nims.ipynb"
+  elif [[ -f "${REPO_DIR}/notebooks/ingest_data.ipynb" ]]; then
+    default_url="/lab/tree/notebooks/ingest_data.ipynb"
   fi
 
   if pgrep -f "jupyter.*8889" >/dev/null 2>&1; then
@@ -83,7 +200,8 @@ start_jupyter() {
     --allow-root \
     --ip=0.0.0.0 \
     --port=8889 \
-    --notebook-dir="${HOME}" \
+    --notebook-dir="${REPO_DIR}" \
+    --ServerApp.default_url="${default_url}" \
     --ServerApp.token='' \
     --ServerApp.password='' \
     > "${HOME}/jupyterlab.log" 2>&1 &
@@ -203,6 +321,13 @@ start_compose_stack() {
 main() {
   log "Starting NVIDIA Brev Launchable setup."
   stop_influxdb_if_present
+  if ! resolve_repo_dir; then
+    log "Repository setup failed. Jupyter will still be started for troubleshooting."
+    ensure_python_tools
+    start_jupyter
+    log "Startup incomplete. Once the repo is available, rerun: REPO_DIR=/path/to/ai-virtual-assistant ${SCRIPT_DIR}/startup.sh"
+    return 0
+  fi
   ensure_python_tools
   start_jupyter
   ensure_docker

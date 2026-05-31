@@ -38,7 +38,7 @@ COPY LICENSE-3rd-party.txt /legal/
 ARG EXAMPLE_PATH
 COPY ${EXAMPLE_PATH} /opt/${EXAMPLE_PATH}
 RUN if [ -f "/opt/${EXAMPLE_PATH}/requirements.txt" ] ; then \
-    pip3 install --no-cache-dir -r /opt/${EXAMPLE_PATH}/requirements.txt ; else \
+    python3.10 -m pip install --no-cache-dir -r /opt/${EXAMPLE_PATH}/requirements.txt ; else \
     echo "Skipping example dependency installation, since requirements.txt was not found" ; \
     fi
 

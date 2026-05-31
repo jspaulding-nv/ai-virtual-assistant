@@ -35,7 +35,7 @@ RUN rm xz-utils*
 COPY LICENSE-3rd-party.txt /legal/
 
 RUN --mount=type=bind,source=src/agent/requirements.txt,target=/opt/agent/requirements.txt \
-    pip3 install --no-cache-dir -r /opt/agent/requirements.txt
+    python3.10 -m pip install --no-cache-dir -r /opt/agent/requirements.txt
 
 # Install common dependencies and copy common code
 COPY src/common /opt/src/common
