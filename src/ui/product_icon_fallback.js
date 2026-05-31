@@ -9,12 +9,20 @@
   var FA_CSS_ID = "aiva-fontawesome-product-icons";
   var PATCHED_ATTR = "data-aiva-product-icon";
   var WATCHED_ATTR = "data-aiva-product-icon-watched";
-  var MODEL_LABELS = {
-    "LLAMA-3_1-70B-INSTRUCT": "NEMOTRON-3-NANO-30B-A3B",
-    "LLAMA-3.1-70B-INSTRUCT": "NEMOTRON-3-NANO-30B-A3B",
-    "NV-RERANKQA-MISTRAL-4B-V3": "LLAMA-NEMOTRON-RERANK-1B-V2",
-    "NV-EMBEDQA-E5-V5": "LLAMA-NEMOTRON-EMBED-1B-V2",
-  };
+  var MODEL_LABELS = [
+    {
+      pattern: /LLAMA[\s._-]*3[\s._-]*1[\s._-]*70B[\s._-]*INSTRUCT/gi,
+      label: "NEMOTRON-3-NANO-30B-A3B",
+    },
+    {
+      pattern: /NV[\s._-]*RERANKQA[\s._-]*MISTRAL[\s._-]*4B[\s._-]*V3/gi,
+      label: "LLAMA-NEMOTRON-RERANK-1B-V2",
+    },
+    {
+      pattern: /NV[\s._-]*EMBEDQA[\s._-]*E5[\s._-]*V5/gi,
+      label: "LLAMA-NEMOTRON-EMBED-1B-V2",
+    },
+  ];
   var PRODUCT_WORDS =
     /nvidia|geforce|rtx|shield|remote|tee|shirt|polo|jacket|vest|hoodie|jogger|pants|beanie|knit|cotton|lululemon|nike|north face|marine layer|mouse|mousepad|computer|care|kit|jetson|developer|gpu|graphics|mug|cup|coffee|ceramic|cooler|laptop|sleeve|case|bag/i;
 
@@ -86,16 +94,35 @@
 
     while ((node = walker.nextNode())) {
       var value = node.nodeValue;
-      var nextValue = value;
-
-      Object.keys(MODEL_LABELS).forEach(function (oldLabel) {
-        nextValue = nextValue.split(oldLabel).join(MODEL_LABELS[oldLabel]);
-      });
+      var nextValue = replaceModelText(value);
 
       if (nextValue !== value) {
         node.nodeValue = nextValue;
       }
     }
+
+    var candidates = document.querySelectorAll("span,p,div,strong,b");
+    for (var i = 0; i < candidates.length; i += 1) {
+      if (candidates[i].children.length > 0) {
+        continue;
+      }
+
+      var text = candidates[i].textContent;
+      var nextText = replaceModelText(text);
+      if (nextText !== text) {
+        candidates[i].textContent = nextText;
+      }
+    }
+  }
+
+  function replaceModelText(value) {
+    var nextValue = value;
+
+    MODEL_LABELS.forEach(function (replacement) {
+      nextValue = nextValue.replace(replacement.pattern, replacement.label);
+    });
+
+    return nextValue;
   }
 
   function isBrokenProductImage(img) {
