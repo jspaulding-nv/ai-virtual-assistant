@@ -30,6 +30,11 @@ if [[ "${REPO_URL}" == https://github.com/* && "${REPO_URL}" != *.git ]]; then
 fi
 REPO_BRANCH="${REPO_BRANCH:-nemotron3-milvus-cpu}"
 REPO_WAIT_SECONDS="${REPO_WAIT_SECONDS:-180}"
+USE_GHCR_IMAGES="${USE_GHCR_IMAGES:-1}"
+GHCR_OWNER="${GHCR_OWNER:-jspaulding-nv}"
+GHCR_IMAGE_PREFIX="${GHCR_IMAGE_PREFIX:-aiva-customer-service}"
+GHCR_TAG="${GHCR_TAG:-nemotron3-milvus-cpu}"
+export USE_GHCR_IMAGES GHCR_OWNER GHCR_IMAGE_PREFIX GHCR_TAG
 
 apt_install() {
   if ! command -v apt-get >/dev/null 2>&1; then
@@ -278,7 +283,7 @@ prepare_launchable_env() {
 
   if [[ -z "${nvidia_key}" ]]; then
     log "NVIDIA_API_KEY is not set. Jupyter is running, but Docker Compose startup was skipped."
-    log "Add NVIDIA_API_KEY and NGC_API_KEY as Brev Launchable secrets, then rerun: docker compose --env-file .env.launchable -f deploy/compose/docker-compose.yaml up -d --build"
+    log "Open notebooks/deploy_hosted_nims.ipynb in Jupyter, enter NVIDIA_API_KEY, and the notebook will pull public GHCR images and start Compose."
     return 1
   fi
 
