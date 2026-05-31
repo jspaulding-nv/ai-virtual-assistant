@@ -16,7 +16,6 @@
 
 import os
 import logging
-from typing import List
 import bleach
 import prometheus_client
 from uuid import uuid4
@@ -26,7 +25,7 @@ import asyncio
 # For session response
 from fastapi import Response
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Any, Dict, Optional, List
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -126,6 +125,31 @@ class AgentResponse(BaseModel):
     sentiment: str = Field(default="", description="Any sentiment associated with this message")
 
 
+def model_to_dict(model: BaseModel) -> Dict[str, Any]:
+    """Return a Pydantic model as a dict without forwarding null values downstream."""
+
+    if hasattr(model, "model_dump"):
+        return model.model_dump(exclude_none=True)
+    return model.dict(exclude_none=True)
+
+
+def sse_message(content: str, session_id: str = "", finish_reason: str = "", sentiment: str = "") -> str:
+    chain_response = AgentResponse(session_id=session_id or "", sentiment=sentiment)
+    response_choice = AgentResponseChoices(
+        index=0,
+        message=Message(role="assistant", content=content or " "),
+        finish_reason=finish_reason,
+    )
+    chain_response.id = str(uuid4())
+    chain_response.choices.append(response_choice)
+    return "data: " + str(chain_response.json()) + "\n\n"
+
+
+def fallback_response_generator(message: str, session_id: str = ""):
+    yield sse_message(message, session_id=session_id)
+    yield sse_message(" ", session_id=session_id, finish_reason="[DONE]")
+
+
 @app.get("/agent/metrics", tags=["Health"])
 async def get_metrics():
     return Response(content=prometheus_client.generate_latest(), media_type="text/plain")
@@ -167,15 +191,30 @@ async def fetch_and_process_response(client, method, url, params=None, json=None
 
         # Check if the response was successful
         if resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Failed to get a response from the backend")
+            raise HTTPException(status_code=resp.status_code, detail=f"Failed to get a response from the backend: {resp.text}")
 
         # Fetch the response content (JSON) and parse it
         return resp.json()
 
     except httpx.ReadTimeout:
         raise HTTPException(status_code=504, detail="Timeout occurred while connecting to the backend service.")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+
+
+@app.delete("/logout", tags=["Session Management"])
+async def logout(session_id: Optional[str] = None):
+    """Compatibility endpoint for hosted UIs that call /logout when closing stateful sessions."""
+
+    if not session_id:
+        return {"message": "Logout acknowledged"}
+
+    target_api_url = f"{AGENT_SERVER_URL}/delete_session"
+    params = {"session_id": session_id}
+    async with httpx.AsyncClient(timeout=httpx.Timeout(REQUEST_TIMEOUT)) as client:
+        return await fetch_and_process_response(client, "DELETE", target_api_url, params=params)
 
 
 @app.post(
@@ -192,25 +231,59 @@ async def generate_response(request: Request, prompt: AgentRequest) -> Streaming
     """Generate and stream the response to the provided prompt."""
 
     api_type = prompt.api_type
-    logger.info(f"\n======API Gateway called with input: {prompt.dict()}=======\n")
+    logger.info(f"\n======API Gateway called with input: {model_to_dict(prompt)}=======\n")
 
     def get_agent_generate_response() -> StreamingResponse:
         target_api_url = f"{AGENT_SERVER_URL}/generate"
+        payload = model_to_dict(prompt)
+        payload["messages"] = payload.get("messages") or []
+        payload["session_id"] = payload.get("session_id") or ""
+        payload["user_id"] = payload.get("user_id") or ""
 
-        async def response_generator():
+        async def backend_response_generator():
             # Forward the request to the original API as a POST request
-            async with httpx.AsyncClient(timeout=httpx.Timeout(REQUEST_TIMEOUT)) as client:
-                async with client.stream("POST", target_api_url, json=prompt.dict()) as resp:
-                    if resp.status_code != 200:
-                        raise HTTPException(status_code=resp.status_code, detail="Failed to get a response from the backend")
+            try:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(REQUEST_TIMEOUT)) as client:
+                    async with client.stream("POST", target_api_url, json=payload) as resp:
+                        if resp.status_code != 200:
+                            body = (await resp.aread()).decode("utf-8", errors="replace")
+                            logger.error("Agent /generate failed with status %s: %s", resp.status_code, body)
+                            for chunk in fallback_response_generator(
+                                "The assistant backend could not complete that request. Please try again in a moment.",
+                                session_id=payload.get("session_id", ""),
+                            ):
+                                yield chunk
+                            return
 
-                    # Forward the streaming response from the original API to the client
-                    async for chunk in resp.aiter_text():
-                        if chunk:
-                            yield chunk
+                        # Forward the streaming response from the original API to the client
+                        async for chunk in resp.aiter_text():
+                            if chunk:
+                                yield chunk
+            except httpx.ReadTimeout as e:
+                logger.error("Timeout while streaming from agent /generate: %s", e)
+                for chunk in fallback_response_generator(
+                    "The assistant backend timed out. Please try again in a moment.",
+                    session_id=payload.get("session_id", ""),
+                ):
+                    yield chunk
+            except httpx.RequestError as e:
+                logger.error("Request error while streaming from agent /generate: %s", e)
+                for chunk in fallback_response_generator(
+                    "The assistant backend is unavailable. Please try again in a moment.",
+                    session_id=payload.get("session_id", ""),
+                ):
+                    yield chunk
+            except Exception as e:
+                logger.error("Unexpected error while streaming from agent /generate: %s", e)
+                print_exc()
+                for chunk in fallback_response_generator(
+                    "The assistant backend hit an unexpected error. Please try again in a moment.",
+                    session_id=payload.get("session_id", ""),
+                ):
+                    yield chunk
 
         # Return a streaming response to the client
-        return StreamingResponse(response_generator(), media_type="text/event-stream")
+        return StreamingResponse(backend_response_generator(), media_type="text/event-stream")
 
     def response_generator(sentence: str, sentiment: str = ""):
         """Mock response generator to simulate streaming predefined sentence."""
@@ -244,7 +317,7 @@ async def generate_response(request: Request, prompt: AgentRequest) -> Streaming
                 processed_response = await fetch_and_process_response(client, "GET", target_api_url)
             logger.info(f"Response from /create_session: {processed_response}")
 
-            prompt.session_id = processed_response.get("session_id")
+            prompt.session_id = processed_response.get("session_id") or ""
             logger.info(f"Calling /generate API of agent MS with session id: {prompt.session_id}")
             return get_agent_generate_response()
 
@@ -285,14 +358,41 @@ async def generate_response(request: Request, prompt: AgentRequest) -> Streaming
 
     except httpx.ReadTimeout as e:
         logger.error(f"HTTP Read Timeout: {e}")
-        raise HTTPException(status_code=504, detail="Upstream server timeout. Please try again later.")
+        return StreamingResponse(
+            fallback_response_generator(
+                "The assistant backend timed out. Please try again in a moment.",
+                session_id=prompt.session_id or "",
+            ),
+            media_type="text/event-stream",
+        )
     except httpx.RequestError as e:
         # This will catch other request-related errors like connection issues
         logger.error(f"Request Error: {e}")
-        raise HTTPException(status_code=502, detail="Error communicating with the upstream server.")
+        return StreamingResponse(
+            fallback_response_generator(
+                "The assistant backend is unavailable. Please try again in a moment.",
+                session_id=prompt.session_id or "",
+            ),
+            media_type="text/event-stream",
+        )
     except asyncio.CancelledError as e:
         logger.error(f"Response generation was cancelled. Details: {e}")
         raise HTTPException(status_code=500, detail=f"Server interruption before response completion: {e}")
+    except HTTPException as e:
+        logger.error(f"Gateway request failed. Details: {e.detail}")
+        return StreamingResponse(
+            fallback_response_generator(
+                "The assistant backend could not complete that request. Please try again in a moment.",
+                session_id=prompt.session_id or "",
+            ),
+            media_type="text/event-stream",
+        )
     except Exception as e:
         logger.error(f"Internal server error. Details: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        return StreamingResponse(
+            fallback_response_generator(
+                "The assistant backend hit an unexpected error. Please try again in a moment.",
+                session_id=prompt.session_id or "",
+            ),
+            media_type="text/event-stream",
+        )
