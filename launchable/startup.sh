@@ -248,17 +248,22 @@ start_jupyter() {
   local notebook_root="${HOME}"
   local repo_path_for_jupyter="${REPO_DIR#${HOME}/}"
   local default_notebook=""
+  local launchable_notebook="${HOME}/ai_virtual_assistant_notebook.ipynb"
 
   if [[ "${repo_path_for_jupyter}" == "${REPO_DIR}" ]]; then
-    notebook_root="${REPO_DIR}"
     repo_path_for_jupyter=""
   fi
 
-  if [[ -f "${REPO_DIR}/deploy/ai_virtual_assistant_notebook.ipynb" ]]; then
+  if [[ -f "${REPO_DIR}/deploy/ai_virtual_assistant_notebook_brev.ipynb" ]]; then
+    cp -f "${REPO_DIR}/deploy/ai_virtual_assistant_notebook_brev.ipynb" "${launchable_notebook}"
+  elif [[ -f "${REPO_DIR}/deploy/ai_virtual_assistant_notebook.ipynb" ]]; then
     cp -f "${REPO_DIR}/deploy/ai_virtual_assistant_notebook.ipynb" "${HOME}/ai_virtual_assistant_notebook.ipynb"
   fi
 
-  if [[ -f "${REPO_DIR}/notebooks/deploy_hosted_nims.ipynb" ]]; then
+  if [[ -f "${launchable_notebook}" ]]; then
+    default_notebook="ai_virtual_assistant_notebook.ipynb"
+    default_url="/lab/tree/${default_notebook}"
+  elif [[ -f "${REPO_DIR}/notebooks/deploy_hosted_nims.ipynb" ]]; then
     default_notebook="${repo_path_for_jupyter:+${repo_path_for_jupyter}/}notebooks/deploy_hosted_nims.ipynb"
     default_url="/lab/tree/${default_notebook}"
   elif [[ -f "${REPO_DIR}/notebooks/ingest_data.ipynb" ]]; then

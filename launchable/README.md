@@ -21,21 +21,21 @@ Use either path:
 - Click the green **jupyter** button if Brev shows one.
 - Or scroll to **Using Secure Links** and open the shareable URL for port `8889`. The port health should show **Healthy**.
 
-Jupyter should open directly to:
+Jupyter should open directly to the Brev lab notebook:
 
 ```text
-notebooks/deploy_hosted_nims.ipynb
+ai_virtual_assistant_notebook.ipynb
 ```
 
 If Jupyter opens to the launcher instead, open the file browser and select:
 
 ```text
-ai-virtual-assistant/notebooks/deploy_hosted_nims.ipynb
+ai_virtual_assistant_notebook.ipynb
 ```
 
 ## 3. Deploy The App From The Notebook
 
-Run the cells in `deploy_hosted_nims.ipynb` from top to bottom.
+Run the cells in `ai_virtual_assistant_notebook.ipynb` from top to bottom.
 
 The first cell asks for your `NVIDIA_API_KEY`. Paste your NVIDIA hosted NIM API key when prompted.
 
