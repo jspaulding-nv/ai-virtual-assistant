@@ -9,6 +9,12 @@
   var FA_CSS_ID = "aiva-fontawesome-product-icons";
   var PATCHED_ATTR = "data-aiva-product-icon";
   var WATCHED_ATTR = "data-aiva-product-icon-watched";
+  var MODEL_LABELS = {
+    "LLAMA-3_1-70B-INSTRUCT": "NEMOTRON-3-NANO-30B-A3B",
+    "LLAMA-3.1-70B-INSTRUCT": "NEMOTRON-3-NANO-30B-A3B",
+    "NV-RERANKQA-MISTRAL-4B-V3": "LLAMA-NEMOTRON-RERANK-1B-V2",
+    "NV-EMBEDQA-E5-V5": "LLAMA-NEMOTRON-EMBED-1B-V2",
+  };
   var PRODUCT_WORDS =
     /nvidia|geforce|rtx|shield|remote|tee|shirt|polo|jacket|vest|hoodie|jogger|pants|beanie|knit|cotton|lululemon|nike|north face|marine layer|mouse|mousepad|computer|care|kit|jetson|developer|gpu|graphics|mug|cup|coffee|ceramic|cooler|laptop|sleeve|case|bag/i;
 
@@ -70,6 +76,28 @@
     return { icon: "fa-box-open", label: "Product" };
   }
 
+  function patchModelLabels() {
+    if (!document.body) {
+      return;
+    }
+
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    var node;
+
+    while ((node = walker.nextNode())) {
+      var value = node.nodeValue;
+      var nextValue = value;
+
+      Object.keys(MODEL_LABELS).forEach(function (oldLabel) {
+        nextValue = nextValue.split(oldLabel).join(MODEL_LABELS[oldLabel]);
+      });
+
+      if (nextValue !== value) {
+        node.nodeValue = nextValue;
+      }
+    }
+  }
+
   function isBrokenProductImage(img) {
     if (!img || img.tagName !== "IMG" || img.hasAttribute(PATCHED_ATTR)) {
       return false;
@@ -111,6 +139,8 @@
   }
 
   function patchAll() {
+    patchModelLabels();
+
     var images = document.querySelectorAll("img:not([" + PATCHED_ATTR + "])");
     for (var i = 0; i < images.length; i += 1) {
       replaceImage(images[i]);
