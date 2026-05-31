@@ -327,7 +327,7 @@ def route_order_status(
         return "order_validation"
     if all(tc["name"] in tool_names for tc in tool_calls):
         return "order_status_safe_tools"
-    return "order_status_sensitive_tools"
+    return "order_status_safe_tools"
 
 builder.add_edge("order_status_safe_tools", "order_status")
 builder.add_conditional_edges("order_status", route_order_status)
