@@ -82,7 +82,10 @@ services:
     - agent-chain-server
 
   agent-frontend:
-    image: nvcr.io/nvidia/blueprint/aiva-customer-service-ui:1.1.0
+    build:
+      context: ../../
+      dockerfile: src/ui/Dockerfile
+    image: aiva-customer-service-ui-icon-fallback:local
     container_name: agent-frontend
     environment:
       - INFERENCE_ORIGIN=http://api-gateway-server:9000
