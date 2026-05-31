@@ -89,7 +89,7 @@ After ingestion finishes, return to the UI on port `3001` and try the suggested 
 Open this notebook manually:
 
 ```text
-ai-virtual-assistant/notebooks/deploy_hosted_nims.ipynb
+ai_virtual_assistant_notebook.ipynb
 ```
 
 ### A Notebook Cell Shows `[*]` For A Long Time

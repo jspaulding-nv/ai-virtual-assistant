@@ -288,7 +288,6 @@ start_jupyter() {
     --ip=0.0.0.0 \
     --port=8889 \
     --ServerApp.root_dir="${notebook_root}" \
-    --notebook-dir="${notebook_root}" \
     --ServerApp.default_url="${default_url}" \
     --LabApp.default_url="${default_url}" \
     --ServerApp.token='' \
@@ -367,7 +366,7 @@ prepare_launchable_env() {
 
   if [[ -z "${nvidia_key}" ]]; then
     log "NVIDIA_API_KEY is not set. Jupyter is running, but Docker Compose startup was skipped."
-    log "Open notebooks/deploy_hosted_nims.ipynb in Jupyter, enter NVIDIA_API_KEY, and the notebook will pull public GHCR images and start Compose."
+    log "Open ai_virtual_assistant_notebook.ipynb in Jupyter, enter NVIDIA_API_KEY, and the notebook will pull public GHCR images and start Compose."
     return 1
   fi
 
