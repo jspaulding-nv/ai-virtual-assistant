@@ -183,6 +183,7 @@ stop_influxdb_if_present() {
 
 start_jupyter() {
   local default_url="/lab"
+  local notebook_root="${REPO_DIR}"
 
   if [[ -f "${REPO_DIR}/deploy/ai_virtual_assistant_notebook.ipynb" ]]; then
     cp -f "${REPO_DIR}/deploy/ai_virtual_assistant_notebook.ipynb" "${HOME}/ai_virtual_assistant_notebook.ipynb"
@@ -195,8 +196,9 @@ start_jupyter() {
   fi
 
   if pgrep -f "jupyter.*8889" >/dev/null 2>&1; then
-    log "Jupyter Lab is already running on port 8889."
-    return
+    log "Restarting Jupyter Lab on port 8889 with the launchable notebook as the default URL."
+    pkill -f "jupyter.*8889" || true
+    sleep 2
   fi
 
   log "Starting Jupyter Lab on port 8889."
@@ -205,8 +207,9 @@ start_jupyter() {
     --allow-root \
     --ip=0.0.0.0 \
     --port=8889 \
-    --notebook-dir="${REPO_DIR}" \
+    --ServerApp.root_dir="${notebook_root}" \
     --ServerApp.default_url="${default_url}" \
+    --LabApp.default_url="${default_url}" \
     --ServerApp.token='' \
     --ServerApp.password='' \
     > "${HOME}/jupyterlab.log" 2>&1 &

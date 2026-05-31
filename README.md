@@ -388,7 +388,7 @@ pip install jupyterlab
 
 **Use this command to run Jupyter Lab so that you can execute this IPython notebook**
 ```bash
-jupyter lab --allow-root --ip=0.0.0.0 --ServerApp.token='' --ServerApp.default_url='/lab/tree/notebooks/deploy_hosted_nims.ipynb' --port=8889
+jupyter lab --allow-root --ip=0.0.0.0 --ServerApp.root_dir="$REPO_ROOT" --ServerApp.token='' --ServerApp.default_url='/lab/tree/notebooks/deploy_hosted_nims.ipynb' --LabApp.default_url='/lab/tree/notebooks/deploy_hosted_nims.ipynb' --port=8889
 ```
 
 **Execute the deploy_hosted_nims.ipynb notebook**
