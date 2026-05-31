@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -Eeuo pipefail
 
 LOG_FILE="${LOG_FILE:-${HOME}/launchable-startup.log}"
