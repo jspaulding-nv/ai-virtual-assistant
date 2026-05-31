@@ -4,6 +4,7 @@
     return;
   }
   window.__aivaProductIconFallback = true;
+  console.info("AIVA product icon fallback loaded");
 
   var FA_CSS_ID = "aiva-fontawesome-product-icons";
   var PATCHED_ATTR = "data-aiva-product-icon";

@@ -4,12 +4,16 @@ COPY src/ui/product_icon_fallback.js /tmp/product_icon_fallback.js
 
 RUN set -eux; \
     patched=0; \
-    for file in $(find / -type f -name "*.js" \( -path "*/_next/static/chunks/app/*" -o -path "*/_next/static/chunks/pages/*" -o -path "*/_next/static/chunks/main-*.js" \) 2>/dev/null); do \
-        cat /tmp/product_icon_fallback.js >> "$file"; \
-        patched=$((patched + 1)); \
+    for root in /app /opt /usr/share/nginx/html /usr/src/app; do \
+        if [ -d "$root" ]; then \
+            for file in $(find "$root" -type f \( -name "*.js" -o -name "*.mjs" \) ! -path "*/node_modules/*" 2>/dev/null); do \
+                cat /tmp/product_icon_fallback.js >> "$file"; \
+                patched=$((patched + 1)); \
+            done; \
+        fi; \
     done; \
     if [ "$patched" -eq 0 ]; then \
-        for file in $(find / -type f -name "page-*.js" 2>/dev/null); do \
+        for file in $(find / -type f \( -name "*.js" -o -name "*.mjs" \) ! -path "*/node_modules/*" ! -path "/legal/*" 2>/dev/null); do \
             cat /tmp/product_icon_fallback.js >> "$file"; \
             patched=$((patched + 1)); \
         done; \
