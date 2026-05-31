@@ -9,6 +9,7 @@
   var FA_CSS_ID = "aiva-fontawesome-product-icons";
   var PATCHED_ATTR = "data-aiva-product-icon";
   var WATCHED_ATTR = "data-aiva-product-icon-watched";
+  var DISABLED_TAG_ATTR = "data-aiva-disabled-tag";
   var TAG_TEXT =
     /^(agent blueprint|blueprint|customer service|retrieval-augmented generation|contact center)$/i;
   var MODEL_LABELS = [
@@ -126,13 +127,45 @@
         continue;
       }
 
-      links[i].removeAttribute("href");
-      links[i].removeAttribute("target");
-      links[i].removeAttribute("rel");
-      links[i].setAttribute("role", "text");
-      links[i].setAttribute("aria-disabled", "true");
-      links[i].style.cursor = "default";
+      replaceTagLinkWithText(links[i]);
     }
+  }
+
+  function replaceTagLinkWithText(link) {
+    if (link.hasAttribute(DISABLED_TAG_ATTR)) {
+      return;
+    }
+
+    var chip = document.createElement("span");
+    var attributes = link.attributes;
+
+    for (var i = 0; i < attributes.length; i += 1) {
+      var name = attributes[i].name;
+      if (name === "href" || name === "target" || name === "rel") {
+        continue;
+      }
+      chip.setAttribute(name, attributes[i].value);
+    }
+
+    chip.setAttribute(DISABLED_TAG_ATTR, "true");
+    chip.setAttribute("role", "text");
+    chip.setAttribute("aria-disabled", "true");
+    chip.style.cursor = "default";
+    chip.style.pointerEvents = "none";
+    chip.innerHTML = link.innerHTML;
+
+    link.replaceWith(chip);
+  }
+
+  function preventHeaderTagNavigation(event) {
+    var target = event.target && event.target.closest ? event.target.closest("a") : null;
+    if (!target || !TAG_TEXT.test((target.textContent || "").trim())) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
   }
 
   function replaceModelText(value) {
@@ -206,6 +239,8 @@
   } else {
     patchAll();
   }
+
+  document.addEventListener("click", preventHeaderTagNavigation, true);
 
   new MutationObserver(function () {
     window.requestAnimationFrame(patchAll);
