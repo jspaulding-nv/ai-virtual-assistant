@@ -13,17 +13,17 @@
     /nvidia|geforce|rtx|shield|remote|tee|shirt|polo|jacket|vest|hoodie|jogger|pants|beanie|knit|cotton|lululemon|nike|north face|marine layer|mouse|mousepad|computer|care|kit|jetson|developer|gpu|graphics|mug|cup|coffee|ceramic|cooler|laptop|sleeve|case|bag/i;
 
   var iconRules = [
+    { pattern: /geforce|rtx|gpu|graphics/i, icon: "fa-microchip", label: "GPU" },
+    { pattern: /jetson|developer|nano/i, icon: "fa-microchip", label: "Device" },
     { pattern: /laptop|sleeve|case|bag|timbuk2/i, icon: "fa-laptop", label: "Laptop accessory" },
     { pattern: /cooler|igloo|cold|insulation|seadrift/i, icon: "fa-snowflake", label: "Cooler" },
-    { pattern: /jogger|pants|lululemon|performance/i, icon: "fa-person-running", label: "Activewear" },
+    { pattern: /jogger|pants|lululemon|activewear/i, icon: "fa-person-running", label: "Activewear" },
     { pattern: /beanie|knit|cap|hat/i, icon: "fa-hat-wizard", label: "Headwear" },
     { pattern: /mug|cup|coffee|ceramic|drink|beverage/i, icon: "fa-mug-hot", label: "Mug" },
-    { pattern: /jetson|developer|nano/i, icon: "fa-microchip", label: "Device" },
     { pattern: /tee|shirt|apparel|unisex|hoodie|jacket|vest|polo|full zip|cotton|polyester|rayon|north face|marine layer|nike/i, icon: "fa-shirt", label: "Apparel" },
     { pattern: /mouse|mousepad|keyboard/i, icon: "fa-computer-mouse", label: "Accessory" },
     { pattern: /shield|remote|tv|controller/i, icon: "fa-gamepad", label: "Device" },
     { pattern: /care|kit|clean|sticker|webcam/i, icon: "fa-screwdriver-wrench", label: "Kit" },
-    { pattern: /geforce|rtx|gpu|graphics/i, icon: "fa-microchip", label: "GPU" },
   ];
 
   function ensureStyles() {
