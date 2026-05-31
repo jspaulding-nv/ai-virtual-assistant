@@ -10,9 +10,10 @@
   var PATCHED_ATTR = "data-aiva-product-icon";
   var WATCHED_ATTR = "data-aiva-product-icon-watched";
   var PRODUCT_WORDS =
-    /nvidia|geforce|rtx|shield|remote|tee|shirt|mouse|mousepad|computer|care|kit|jetson|developer|gpu|graphics/i;
+    /nvidia|geforce|rtx|shield|remote|tee|shirt|mouse|mousepad|computer|care|kit|jetson|developer|gpu|graphics|mug|cup|coffee|ceramic/i;
 
   var iconRules = [
+    { pattern: /mug|cup|coffee|ceramic|drink|beverage/i, icon: "fa-mug-hot", label: "Mug" },
     { pattern: /tee|shirt|apparel|unisex|hoodie|jacket|cap/i, icon: "fa-shirt", label: "Apparel" },
     { pattern: /mouse|mousepad|keyboard/i, icon: "fa-computer-mouse", label: "Accessory" },
     { pattern: /shield|remote|tv|controller/i, icon: "fa-gamepad", label: "Device" },
