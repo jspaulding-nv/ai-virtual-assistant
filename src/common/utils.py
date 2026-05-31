@@ -144,7 +144,11 @@ def create_vectorstore_langchain(document_embedder, collection_name: str = "") -
             document_embedder,
             connection_args={"host": url.hostname, "port": url.port},
             collection_name=collection_name,
-            index_params={"index_type": "GPU_IVF_FLAT", "metric_type": "L2", "nlist": config.vector_store.nlist},
+            index_params={
+                "index_type": config.vector_store.index_type,
+                "metric_type": "L2",
+                "nlist": config.vector_store.nlist,
+            },
             search_params={"nprobe": config.vector_store.nprobe},
             auto_id = True
         )

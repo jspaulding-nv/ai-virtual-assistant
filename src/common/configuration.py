@@ -45,6 +45,11 @@ class VectorStoreConfig(ConfigWizard):
         default=16, # IVF Flat milvus
         help_txt="Number of units to query",
     )
+    index_type: str = configfield(
+        "index_type",
+        default="IVF_FLAT",
+        help_txt="Milvus index type",
+    )
 
 @configclass
 class DatabaseConfig(ConfigWizard):

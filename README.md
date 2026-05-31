@@ -77,7 +77,7 @@ The AI virtual assistant for customer service NIM Agent Blueprint, powered by NV
 
 * NVIDIA NIM microservices
    * Response Generation (Inference)
-      * [NIM of meta/llama-3.3-70b-instruct](https://build.nvidia.com/meta/llama-3_3-70b-instruct)
+      * [NIM of nvidia/nemotron-3-nano-30b-a3b](https://build.nvidia.com/nvidia/nemotron-3-nano-30b-a3b)
       * [NIM of nvidia/llama-nemotron-embed-1b-v2](https://build.nvidia.com/nvidia/llama-nemotron-embed-1b-v2)
       * [NIM of nvidia/llama-nemotron-rerank-1b-v2](https://build.nvidia.com/nvidia/llama-nemotron-rerank-1b-v2)
    * [Synthetic Data Generation](./notebooks/synthetic_data_generation.ipynb) for reference
@@ -85,7 +85,7 @@ The AI virtual assistant for customer service NIM Agent Blueprint, powered by NV
 * Orchestrator Agent - LangGraph based
 * Text Retrievers - LangChain
 * Structured Data (CSV) Ingestion - Postgres Database
-* Unstructured Data (PDF) Ingestion - Milvus Database (Vector GPU-optimized)
+* Unstructured Data (PDF) Ingestion - Milvus Database (CPU by default for Docker Compose)
 
 Docker Compose scripts are provided which spin up the microservices on a single node. When ready for a larger-scale deployment, you can use the included Helm charts to spin up the necessary microservices. You will use sample Jupyter notebooks with the JupyterLab service to interact with the code directly.
 
@@ -105,12 +105,12 @@ This blueprint is for:
 Below are the hardware requirements for each component.
 The reference code in the solution (glue code) is referred to as as the "pipeline".
 
-The overall hardware requirements depend on the selected deployment. The NIM and hardware requirements only need to be met if you are self-hosting them. See [Using self-hosted NIMs](#using-self-hosted-nims)
+The overall hardware requirements depend on the selected deployment. The default Docker Compose path uses hosted NIMs and CPU Milvus, so it can run on a VM without a GPU. The NIM and GPU hardware requirements only need to be met if you are self-hosting them. See [Using self-hosted NIMs](#using-self-hosted-nims)
 
 #### Minimum hardware requirements for self hosting all NIMs
 8XH100, 8XA100
 
-- **Pipeline operation**: 1x L40 GPU or similar recommended. It is needed for vectorstore milvus.
+- **Pipeline operation with hosted NIMs**: No GPU is required for the default Docker Compose deployment because inference runs on hosted NIMs and Milvus uses the CPU image.
 - (If locally deployed) **LLM NIM**: [Meta Llama 3.1 70B Instruct Support Matrix](https://docs.nvidia.com/nim/large-language-models/latest/support-matrix.html#llama-3-1-70b-instruct)
   - For improved paralleled performance, we recommend 8x or more H100s for LLM inference.
   - The pipeline can share the GPU with the LLM NIM, but it is recommended to have a separate GPU for the LLM NIM for optimal performance.
@@ -203,10 +203,10 @@ Ubuntu 20.04 or 22.04 based machine, with sudo privileges
 - Ensure the Docker Compose plugin version is 2.29.1 or higher.
 - Run docker compose version to confirm.
 - Refer to [Install the Compose plugin](https://docs.docker.com/compose/install/linux/) in the Docker documentation for more information.
-- To configure Docker for GPU-accelerated containers, install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+- To use GPU-accelerated containers for self-hosted NIMs, install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 - Install [git](https://git-scm.com/)
 
-By default the provided configurations use GPU optimized databases such as Milvus.
+By default the Docker Compose configuration uses hosted NIMs and the CPU Milvus image, so it is suitable for a VM with no GPU.
 
 #### Obtain API keys
 To run the pipeline you need to obtain API keys for the following APIs. These will be needed in a later step to [Set up the environment file](#set-up-the-environment-file).
@@ -215,7 +215,7 @@ To run the pipeline you need to obtain API keys for the following APIs. These wi
   - NVIDIA Inference Microservices (NIM)
     - There are two possible methods to generate an API key for NIM:
       - Sign in to the [NVIDIA Build](https://build.nvidia.com/explore/discover?signin=true) portal with your email.
-        - Click on any [model](https://build.nvidia.com/meta/llama-3_1-70b-instruct), then click "Get API Key", and finally click "Generate Key".
+        - Click on the [Nemotron 3 Nano model](https://build.nvidia.com/nvidia/nemotron-3-nano-30b-a3b), then click "Get API Key", and finally click "Generate Key".
       - Sign in to the [NVIDIA NGC](https://ngc.nvidia.com/) portal with your email.
         - Select your organization from the dropdown menu after logging in. You must select an organization which has NVIDIA AI Enterprise (NVAIE) enabled.
         - Click on your account in the top right, select "Setup" from the dropdown.
@@ -278,7 +278,7 @@ The container name can be determined from the docker-compose file.
 There are two supported configurations for starting the Docker containers.
 The default passwords in [docker-compose.yaml](./deploy/compose/docker-compose.yaml) and the source code (e.g. default DB passwords) should be changed before deploying the blueprint.
 
-1. [**NVIDIA-hosted NIMs**](#using-nvidia-hosted-nims): The blueprint is run with all computation being performed by NIMs hosted in NVIDIA GPU Cloud. This is the default configuration and is **recommended** for most users getting started with the blueprint.
+1. [**NVIDIA-hosted NIMs**](#using-nvidia-hosted-nims): The blueprint is run with model inference performed by hosted NIMs in NVIDIA GPU Cloud. This default configuration uses `nvidia/nemotron-3-nano-30b-a3b` for response generation and the CPU `milvusdb/milvus:v2.4.15` image, making it suitable for a VM with no GPU.
 ```bash
 cd $REPO_ROOT
 docker compose -f deploy/compose/docker-compose.yaml up -d
@@ -298,7 +298,9 @@ fcde431d44de   pgadmin_container           Up 3 hours
 f2ce39cf3027   compose-redis-commander-1   Up 3 hours (healthy)
 ```
 
-2. [**Self-hosted NIMs**](#using-self-hosted-nims): The blueprint is run using self-hosted LLM NIM services.
+If you are switching an existing deployment from GPU Milvus to CPU Milvus, recreate the Milvus collections or remove the old Milvus volume and re-ingest the data so the collections use the CPU index type.
+
+2. [**Self-hosted NIMs**](#using-self-hosted-nims): The blueprint is run using self-hosted LLM NIM services. This profile starts local NIM containers and requires GPUs; it is not used for the no-GPU VM deployment path.
 
 ```bash
 # Create model directory to download model from NGC
@@ -346,8 +348,6 @@ caa2e19b030b   pgadmin_container                       Up 3 hours
 LLM_MS_GPU_ID: Update this to specify the LLM GPU IDs (e.g., 0,1,2,3).
 EMBEDDING_MS_GPU_ID: Change this to set the embedding GPU ID.
 RANKING_MS_GPU_ID: Modify this to adjust the reranking LLM GPU ID.
-RANKING_MS_GPU_ID: Modify this to adjust the reranking LLM GPU ID.
-VECTORSTORE_GPU_DEVICE_ID : Modify to adjust the Milvus vector database GPU ID.
 ```
 
 #### Data Ingestion
