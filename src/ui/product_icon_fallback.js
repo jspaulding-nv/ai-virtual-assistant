@@ -9,6 +9,8 @@
   var FA_CSS_ID = "aiva-fontawesome-product-icons";
   var PATCHED_ATTR = "data-aiva-product-icon";
   var WATCHED_ATTR = "data-aiva-product-icon-watched";
+  var TAG_TEXT =
+    /^(agent blueprint|blueprint|customer service|retrieval-augmented generation|contact center)$/i;
   var MODEL_LABELS = [
     {
       pattern: /LLAMA[\s._-]*3[\s._-]*1[\s._-]*70B[\s._-]*INSTRUCT/gi,
@@ -115,6 +117,24 @@
     }
   }
 
+  function disableHeaderTagLinks() {
+    var links = document.querySelectorAll("a[href]");
+
+    for (var i = 0; i < links.length; i += 1) {
+      var text = (links[i].textContent || "").trim();
+      if (!TAG_TEXT.test(text)) {
+        continue;
+      }
+
+      links[i].removeAttribute("href");
+      links[i].removeAttribute("target");
+      links[i].removeAttribute("rel");
+      links[i].setAttribute("role", "text");
+      links[i].setAttribute("aria-disabled", "true");
+      links[i].style.cursor = "default";
+    }
+  }
+
   function replaceModelText(value) {
     var nextValue = value;
 
@@ -167,6 +187,7 @@
 
   function patchAll() {
     patchModelLabels();
+    disableHeaderTagLinks();
 
     var images = document.querySelectorAll("img:not([" + PATCHED_ATTR + "])");
     for (var i = 0; i < images.length; i += 1) {
