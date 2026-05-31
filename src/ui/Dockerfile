@@ -1,8 +1,10 @@
 FROM nvcr.io/nvidia/blueprint/aiva-customer-service-ui:1.1.0
 
 COPY src/ui/product_icon_fallback.js /tmp/product_icon_fallback.js
+COPY src/ui/patch_next_static_assets.js /tmp/patch_next_static_assets.js
 
 RUN set -eux; \
+    node /tmp/patch_next_static_assets.js; \
     patched=0; \
     for root in /app /opt /usr/share/nginx/html /usr/src/app; do \
         if [ -d "$root" ]; then \
