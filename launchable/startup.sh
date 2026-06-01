@@ -263,9 +263,6 @@ start_jupyter() {
   if [[ -f "${launchable_notebook}" ]]; then
     default_notebook="ai_virtual_assistant_notebook.ipynb"
     default_url="/lab/tree/${default_notebook}"
-  elif [[ -f "${REPO_DIR}/notebooks/deploy_hosted_nims.ipynb" ]]; then
-    default_notebook="${repo_path_for_jupyter:+${repo_path_for_jupyter}/}notebooks/deploy_hosted_nims.ipynb"
-    default_url="/lab/tree/${default_notebook}"
   elif [[ -f "${REPO_DIR}/notebooks/ingest_data.ipynb" ]]; then
     default_notebook="${repo_path_for_jupyter:+${repo_path_for_jupyter}/}notebooks/ingest_data.ipynb"
     default_url="/lab/tree/${default_notebook}"

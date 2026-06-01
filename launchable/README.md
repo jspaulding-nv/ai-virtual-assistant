@@ -52,13 +52,13 @@ The notebook then:
 The Docker cell may take several minutes on a fresh VM while images are pulled and containers start. Full Docker output is written to:
 
 ```text
-logs/deploy_hosted_nims.log
+logs/ai_virtual_assistant_brev.log
 ```
 
 To watch progress, open a Jupyter terminal and run:
 
 ```bash
-tail -f ~/ai-virtual-assistant/logs/deploy_hosted_nims.log
+tail -f ~/ai-virtual-assistant/logs/ai_virtual_assistant_brev.log
 ```
 
 ## 4. Open The Sample UI
@@ -99,7 +99,7 @@ ai_virtual_assistant_notebook.ipynb
 The cell is still running. For Docker deploy progress, open a Jupyter terminal and run:
 
 ```bash
-tail -f ~/ai-virtual-assistant/logs/deploy_hosted_nims.log
+tail -f ~/ai-virtual-assistant/logs/ai_virtual_assistant_brev.log
 ```
 
 ### The UI Link Is Not Healthy

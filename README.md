@@ -388,12 +388,12 @@ pip install jupyterlab
 
 **Use this command to run Jupyter Lab so that you can execute this IPython notebook**
 ```bash
-jupyter lab --allow-root --ip=0.0.0.0 --ServerApp.root_dir="$REPO_ROOT" --ServerApp.token='' --ServerApp.default_url='/lab/tree/notebooks/deploy_hosted_nims.ipynb' --LabApp.default_url='/lab/tree/notebooks/deploy_hosted_nims.ipynb' --port=8889
+jupyter lab --allow-root --ip=0.0.0.0 --ServerApp.root_dir="$REPO_ROOT" --ServerApp.token='' --ServerApp.default_url='/lab/tree/deploy/ai_virtual_assistant_notebook_brev.ipynb' --LabApp.default_url='/lab/tree/deploy/ai_virtual_assistant_notebook_brev.ipynb' --port=8889
 ```
 
-**Execute the deploy_hosted_nims.ipynb notebook**
+**Execute the ai_virtual_assistant_notebook_brev.ipynb notebook**
 
-Jupyter Lab opens the hosted NIM deployment notebook by default. Follow the cells in `notebooks/deploy_hosted_nims.ipynb` to deploy the Docker Compose services, then continue to `notebooks/ingest_data.ipynb`.
+Jupyter Lab opens the Brev hosted-NIM deployment notebook by default. Follow the cells in `deploy/ai_virtual_assistant_notebook_brev.ipynb` to deploy the Docker Compose services, then continue to `notebooks/ingest_data.ipynb`.
 
 **Execute the ingest_data.ipynb notebook**
 
