@@ -6,9 +6,17 @@ FROM ${BASE_IMAGE_URL}:${BASE_IMAGE_TAG} as license_base
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV DEBIAN_FRONTEND noninteractive
 
-# Install required ubuntu packages for setting up python 3.10
+# Install required ubuntu packages for setting up python 3.10 and parsing PDFs.
 RUN apt update && \
-    apt install -y curl software-properties-common libgl1 libglib2.0-0 && \
+    apt install -y \
+        curl \
+        file \
+        libgl1 \
+        libglib2.0-0 \
+        libmagic1 \
+        poppler-utils \
+        software-properties-common \
+        tesseract-ocr && \
     add-apt-repository ppa:deadsnakes/ppa && \
     apt update && apt install -y python3.10 && \
     apt-get clean

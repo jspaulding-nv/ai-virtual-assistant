@@ -64,30 +64,49 @@ class UnstructuredRetriever(BaseExample):
         Raises:
             ValueError: If there's an error during document ingestion or the file format is not supported.
         """
-        if not filename.endswith((".txt", ".pdf", ".md")):
+        if not filename.lower().endswith((".txt", ".pdf", ".md")):
             raise ValueError(f"{filename} is not a valid Text, PDF or Markdown file")
+
+        _path = filepath
+        loader_kwargs = {}
+        if filename.lower().endswith(".pdf"):
+            loader_kwargs["strategy"] = os.environ.get("APP_UNSTRUCTURED_PDF_STRATEGY", "fast")
+
         try:
             # Load raw documents from the directory
-            _path = filepath
-            raw_documents = UnstructuredFileLoader(_path).load()
-
-            if raw_documents:
-                global text_splitter
-                # Get text splitter instance, it is selected based on environment variable APP_TEXTSPLITTER_MODELNAME
-                # tokenizer dimension of text splitter should be same as embedding model
-                if not text_splitter:
-                    text_splitter = get_text_splitter()
-
-                # split documents based on configuration provided
-                documents = text_splitter.split_documents(raw_documents)
-                vs = get_vectorstore(vectorstore, document_embedder)
-                # ingest documents into vectorstore
-                vs.add_documents(documents)
-            else:
-                logger.warning("No documents available to process!")
+            raw_documents = UnstructuredFileLoader(_path, **loader_kwargs).load()
         except Exception as e:
-            logger.error(f"Failed to ingest document due to exception {e}")
-            raise ValueError("Failed to upload document. Please upload an unstructured text document.")
+            logger.exception("Failed to parse unstructured document %s", filename)
+            raise ValueError(
+                f"Failed to parse {filename}. Confirm it is a readable Text, PDF, or Markdown file. Parser error: {e}"
+            ) from e
+
+        if not raw_documents:
+            logger.warning("No documents available to process!")
+            return
+
+        try:
+            global text_splitter
+            # Get text splitter instance, selected based on environment variable APP_TEXTSPLITTER_MODELNAME.
+            if not text_splitter:
+                text_splitter = get_text_splitter()
+
+            # Split documents based on configuration provided.
+            documents = text_splitter.split_documents(raw_documents)
+        except Exception as e:
+            logger.exception("Failed to split unstructured document %s", filename)
+            raise ValueError(f"Failed to split {filename} into chunks. Splitter error: {e}") from e
+
+        try:
+            vs = get_vectorstore(vectorstore, document_embedder)
+            # Ingest documents into vectorstore.
+            vs.add_documents(documents)
+        except Exception as e:
+            logger.exception("Failed to embed or store unstructured document %s", filename)
+            raise ValueError(
+                f"Failed to embed or store {filename}. Confirm NVIDIA_API_KEY is valid and Milvus is healthy. "
+                f"Embedding/vector store error: {e}"
+            ) from e
 
 
     def document_search(self, content: str, num_docs: int, conv_history: Dict[str, str] = {}) -> List[Dict[str, Any]]:

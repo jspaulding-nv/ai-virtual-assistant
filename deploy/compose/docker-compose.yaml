@@ -179,6 +179,7 @@ services:
       APP_TEXTSPLITTER_MODELNAME: Snowflake/snowflake-arctic-embed-l
       APP_TEXTSPLITTER_CHUNKSIZE: 506
       APP_TEXTSPLITTER_CHUNKOVERLAP: 200
+      APP_UNSTRUCTURED_PDF_STRATEGY: ${APP_UNSTRUCTURED_PDF_STRATEGY:-fast}
       NVIDIA_API_KEY: ${NVIDIA_API_KEY}
       # vectorstore collection name to store embeddings
       COLLECTION_NAME: ${COLLECTION_NAME:-unstructured_data}
