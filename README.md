@@ -293,7 +293,7 @@ docker compose --env-file .env.launchable \
   up -d --no-build
 ```
 
-For NVIDIA Brev Launchables, `USE_GHCR_IMAGES=1` is the default. If `NVIDIA_API_KEY` is not available to the startup script, Jupyter will still start and `notebooks/deploy_hosted_nims.ipynb` will prompt the user for the key, pull the public GHCR app images, and start Compose with `--no-build`.
+For NVIDIA Brev Launchables, use the [no-GPU hosted NIM Launchable](https://brev.nvidia.com/launchable/deploy/now?launchableID=env-3EUpXYXIoMDAYk7sUj0qPEzM0T7). `USE_GHCR_IMAGES=1` is the default. If `NVIDIA_API_KEY` is not available to the startup script, Jupyter will still start and `ai_virtual_assistant_notebook.ipynb` will prompt the user for the key, pull the public GHCR app images, and start Compose with `--no-build`.
 
 #### Start the Docker containers
 
