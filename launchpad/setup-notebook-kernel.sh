@@ -41,7 +41,9 @@ cd "${REPO_ROOT}"
 
 KERNEL_PYTHON=""
 
-if "${SYSTEM_PYTHON}" -m venv "${VENV_DIR}"; then
+if "${SYSTEM_PYTHON}" - <<'PY' >/dev/null 2>&1 && "${SYSTEM_PYTHON}" -m venv "${VENV_DIR}"; then
+import ensurepip
+PY
   KERNEL_PYTHON="${VENV_PYTHON}"
   "${KERNEL_PYTHON}" -m pip install --upgrade pip
   "${KERNEL_PYTHON}" -m pip install ipykernel -r "${REQUIREMENTS_FILE}"
@@ -51,13 +53,16 @@ else
     "To force a venv later, install python3.12-venv and rerun this script."
 
   KERNEL_PYTHON="${SYSTEM_PYTHON}"
-  if ! "${KERNEL_PYTHON}" -m pip install --user ipykernel -r "${REQUIREMENTS_FILE}"; then
-    "${KERNEL_PYTHON}" -m pip install \
-      --user \
-      --break-system-packages \
-      ipykernel \
-      -r "${REQUIREMENTS_FILE}"
+  PIP_SYSTEM_FLAGS=()
+  if "${KERNEL_PYTHON}" -m pip install --help 2>/dev/null | grep -q -- "--break-system-packages"; then
+    PIP_SYSTEM_FLAGS+=(--break-system-packages)
   fi
+
+  "${KERNEL_PYTHON}" -m pip install \
+    --user \
+    "${PIP_SYSTEM_FLAGS[@]}" \
+    ipykernel \
+    -r "${REQUIREMENTS_FILE}"
 fi
 
 "${KERNEL_PYTHON}" -m ipykernel install \
