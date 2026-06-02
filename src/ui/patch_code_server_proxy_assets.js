@@ -80,6 +80,12 @@ function rewriteAbsoluteSameOriginPaths(source, filePath) {
   next = next.replace(/(\\["'`])\/artifacts\//g, "$1./artifacts/");
   next = next.replace(/\\\/artifacts\//g, ".\\/artifacts/");
 
+  next = next.replace(/https:\/\/assets\.ngc\.nvidia\.com\/products\//g, "./artifacts/products/");
+  next = next.replace(
+    /https:\\\/\\\/assets\.ngc\.nvidia\.com\\\/products\\\//g,
+    ".\\/artifacts\\/products\\/"
+  );
+
   next = next.replace(/(["'`])\/temp_image\.jpg/g, "$1./temp_image.jpg");
   next = next.replace(/(\\["'`])\/temp_image\.jpg/g, "$1./temp_image.jpg");
   next = next.replace(/\\\/temp_image\.jpg/g, ".\\/temp_image.jpg");
@@ -112,7 +118,9 @@ for (const root of roots) {
       return;
     }
 
-    const matches = source.match(/\/_next\/|\/favicon\.ico|\/artifacts\/|\/temp_image\.jpg/g);
+    const matches = source.match(
+      /\/_next\/|\/favicon\.ico|\/artifacts\/|assets\.ngc\.nvidia\.com\/products\/|\/temp_image\.jpg/g
+    );
     replacementCount += matches ? matches.length : 1;
     fs.writeFileSync(filePath, next);
     patchedFiles += 1;
