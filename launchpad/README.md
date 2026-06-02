@@ -26,6 +26,8 @@ This deployment expects:
 
 Use the **Code Server IDE** for this lab. LaunchPad may also provide browser desktop, WebSSH, or Jupyter Notebook access if you prefer those tools.
 
+The LaunchPad Jupyter Notebook link at `/launch/notebook` is commonly backed by an automatically managed container such as `lp-jupyter-notebook:24.04`. Its JupyterLab terminal opens a shell inside that notebook container, not on the LaunchPad host. Use Code Server or WebSSH for Docker Compose, `nvidia-smi`, NIM logs, and other host-level commands.
+
 ## Local Model And GPU Layout
 
 The Compose override in this folder uses a split-GPU layout:
@@ -427,6 +429,12 @@ If the assistant responds with a generic message such as `I wasn't able to proce
 ```bash
 docker logs agent-chain-server --tail=200
 ```
+
+### Jupyter Terminal Does Not Run Host Commands
+
+If the LaunchPad Jupyter terminal shows a root prompt such as `#`, it is probably running inside the platform `lp-jupyter-notebook:24.04` container. That shell is useful only for files and processes available inside the notebook container. It is not the host shell used by this lab, and it may not have the Docker socket, GPU devices, model cache, or repository checkout that the Compose workflow needs.
+
+Open **Resources > Code Server IDE** and use **Terminal > New Terminal** for the commands in this guide. WebSSH is also a valid host terminal if your LaunchPad instance exposes it.
 
 If the logs show this error:
 
