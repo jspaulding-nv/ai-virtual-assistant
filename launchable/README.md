@@ -2,7 +2,7 @@
 
 This guide walks you through starting the no-GPU NVIDIA Brev Launchable for the AI Virtual Assistant lab. The Launchable uses NVIDIA-hosted NIMs, public GHCR app images, and CPU Milvus, so you do not need a GPU or an NGC Docker key.
 
-Launch the lab here: [no-GPU hosted NIM Launchable](https://brev.nvidia.com/launchable/deploy/now?launchableID=env-3EUpXYXIoMDAYk7sUj0qPEzM0T7).
+Launch the lab here: [no-GPU hosted NIM Launchable](https://brev.nvidia.com/launchable/deploy/now?launchableID=env-3EaHIlKihPRosy0rT4yIDXfLMol).
 
 You will need an NVIDIA API key for hosted NIM inference. You will enter it inside Jupyter after the VM starts.
 
