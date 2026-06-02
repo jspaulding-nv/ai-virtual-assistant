@@ -14,6 +14,7 @@
 # limitations under the License.
 import logging
 import os
+import re
 from typing import Annotated, TypedDict, Dict
 from langgraph.graph.message import AnyMessage, add_messages
 from typing import Callable
@@ -38,6 +39,26 @@ logger = logging.getLogger(__name__)
 prompts = get_prompts()
 # TODO get the default_kwargs from the Agent Server API
 default_llm_kwargs = {"temperature": 0.2, "top_p": 0.7, "max_tokens": 1024}
+
+PRODUCT_QA_TERMS = re.compile(
+    r"\b("
+    r"install|installation|setup|set up|manual|guide|quick start|qsg|"
+    r"spec|specification|system requirement|requirement|"
+    r"driver|troubleshoot|troubleshooting|warranty|"
+    r"pci|pcie|pci express|power connector|power supply|cable|adapter|"
+    r"slot|displayport|hdmi|connect|connector|mount|"
+    r"how do i use|how to use"
+    r")\b",
+    re.IGNORECASE,
+)
+
+ORDER_OR_RETURN_TERMS = re.compile(
+    r"\b("
+    r"order|return|refund|purchase|purchased|delivery|delivered|ship|shipping|"
+    r"tracking|status|cancel|canceled|cancelled|received|arrive|arrived"
+    r")\b",
+    re.IGNORECASE,
+)
 
 # STATE OF THE AGENT
 class State(TypedDict):
@@ -381,6 +402,30 @@ builder.add_conditional_edges("return_processing", route_return_processing)
 def user_info(state: State):
     return {"user_purchase_history": get_purchase_history(state["user_id"]), "current_product": ""}
 
+def last_human_message(state: State) -> str:
+    for message in reversed(state["messages"]):
+        if isinstance(message, HumanMessage):
+            return message.content or ""
+
+        if isinstance(message, tuple) and len(message) >= 2 and str(message[0]).lower() in {"human", "user"}:
+            return str(message[1] or "")
+
+    return ""
+
+def route_initial_request(state: State) -> Literal[
+    "enter_product_qa",
+    "primary_assistant",
+]:
+    query = last_human_message(state)
+    if PRODUCT_QA_TERMS.search(query):
+        logger.info("Routing product guide/manual query directly to product QA: %s", query)
+        return "enter_product_qa"
+
+    if ORDER_OR_RETURN_TERMS.search(query):
+        return "primary_assistant"
+
+    return "primary_assistant"
+
 builder.add_node("fetch_purchase_history", user_info)
 builder.add_edge(START, "fetch_purchase_history")
 builder.add_edge("ask_clarification", END)
@@ -460,7 +505,14 @@ builder.add_conditional_edges(
     is_return_product_valid
 )
 
-builder.add_edge("fetch_purchase_history", "primary_assistant")
+builder.add_conditional_edges(
+    "fetch_purchase_history",
+    route_initial_request,
+    {
+        "enter_product_qa": "enter_product_qa",
+        "primary_assistant": "primary_assistant",
+    },
+)
 
 
 # Allow multiple async loop togeather
