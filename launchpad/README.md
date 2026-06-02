@@ -24,9 +24,9 @@ This deployment expects:
 - Code Server IDE access
 - Enough local disk space for NIM model cache and Docker volumes
 
-Use the **Code Server IDE** for this lab. LaunchPad may also provide browser desktop, WebSSH, or Jupyter Notebook access if you prefer those tools.
+Use the **Code Server IDE** for host setup and troubleshooting. LaunchPad may also provide browser desktop, WebSSH, or Jupyter Notebook access if you prefer those tools.
 
-The LaunchPad Jupyter Notebook link at `/launch/notebook` is commonly backed by an automatically managed container such as `lp-jupyter-notebook:24.04`. Its JupyterLab terminal opens a shell inside that notebook container, not on the LaunchPad host. Use Code Server or WebSSH for Docker Compose, `nvidia-smi`, NIM logs, and other host-level commands.
+The LaunchPad Jupyter Notebook link at `/launch/notebook` is commonly backed by an automatically managed container such as `lp-jupyter-notebook:24.04`. Run the managed-Jupyter setup step below if you want that JupyterLab terminal and notebook kernel to use the host Docker daemon.
 
 ## Local Model And GPU Layout
 
@@ -81,6 +81,30 @@ bash launchpad/setup-notebook-kernel.sh
 ```
 
 This installs the notebook dependencies, registers the `AIVA LaunchPad` Jupyter kernel, and configures that kernel to use the LaunchPad unstructured retriever host port `18086`. The script uses `.venv-notebooks` when Python venv support is installed; otherwise it falls back to a user-local Python install on the stock LaunchPad image.
+
+### Optional: Prepare The Managed Jupyter Notebook Resource
+
+If users will work from **Resources > Jupyter Notebook** instead of VS Code, open the Jupyter resource once so LaunchPad starts its `jupyter-notebook` container, then run this from the Code Server or WebSSH host terminal:
+
+```bash
+bash launchpad/setup-managed-jupyter.sh
+```
+
+This script prepares the LaunchPad-managed workspace at:
+
+```text
+/opt/nvidia/launchpad/jupyter-notebook
+```
+
+It copies this repo into that workspace, adds a top-level notebook named:
+
+```text
+ai_virtual_assistant_notebook.ipynb
+```
+
+and configures Docker access from the managed Jupyter container. After it finishes, users can open **Resources > Jupyter Notebook**, run `ai_virtual_assistant_notebook.ipynb`, and use `docker`, `docker compose`, and `docker logs` from Jupyter terminals.
+
+The script exposes the host Docker socket to the managed Jupyter container. That is appropriate for this trusted lab instance, but it should not be enabled for untrusted users.
 
 ## 3. Check The Instance
 
@@ -340,6 +364,14 @@ If the instance was prepared with `launchpad/setup-notebook-kernel.sh`, VS Code 
 AIVA LaunchPad
 ```
 
+If you prepared **Resources > Jupyter Notebook** with `launchpad/setup-managed-jupyter.sh`, open:
+
+```text
+ai-virtual-assistant/notebooks/ingest_data.ipynb
+```
+
+and select the same `AIVA LaunchPad` kernel.
+
 Run the cells from top to bottom. The notebook loads:
 
 - Product manuals and FAQ documents into GPU-backed Milvus collections
@@ -430,11 +462,23 @@ If the assistant responds with a generic message such as `I wasn't able to proce
 docker logs agent-chain-server --tail=200
 ```
 
-### Jupyter Terminal Does Not Run Host Commands
+### Managed Jupyter Terminal Cannot See Docker
 
-If the LaunchPad Jupyter terminal shows a root prompt such as `#`, it is probably running inside the platform `lp-jupyter-notebook:24.04` container. That shell is useful only for files and processes available inside the notebook container. It is not the host shell used by this lab, and it may not have the Docker socket, GPU devices, model cache, or repository checkout that the Compose workflow needs.
+If the LaunchPad Jupyter terminal shows a root prompt such as `#`, it is running inside the platform `lp-jupyter-notebook:24.04` container. That is expected. To make that terminal useful for Docker Compose and logs, run this once from Code Server or WebSSH:
 
-Open **Resources > Code Server IDE** and use **Terminal > New Terminal** for the commands in this guide. WebSSH is also a valid host terminal if your LaunchPad instance exposes it.
+```bash
+bash launchpad/setup-managed-jupyter.sh
+```
+
+Then refresh **Resources > Jupyter Notebook**. New Jupyter terminals should be able to run:
+
+```bash
+docker ps
+docker compose version
+docker logs -f nemollm-inference-microservice
+```
+
+Use Code Server or WebSSH when you need a true host shell for commands such as `nvidia-smi` or direct host filesystem inspection.
 
 If the logs show this error:
 
