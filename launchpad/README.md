@@ -72,6 +72,14 @@ Expected branch:
 nemotron3-milvus-cpu
 ```
 
+If you are preparing the instance before participants arrive, set up the notebook kernel now:
+
+```bash
+bash launchpad/setup-notebook-kernel.sh
+```
+
+This creates `.venv-notebooks`, installs the notebook dependencies, registers the `AIVA LaunchPad` Jupyter kernel, and configures that kernel to use the LaunchPad unstructured retriever host port `18086`.
+
 ## 3. Check The Instance
 
 Confirm that Docker Compose and the H100 GPUs are visible:
@@ -255,6 +263,12 @@ Open the notebook:
 
 ```text
 notebooks/ingest_data.ipynb
+```
+
+If the instance was prepared with `launchpad/setup-notebook-kernel.sh`, VS Code should automatically use the `AIVA LaunchPad` kernel. If VS Code asks you to choose a kernel, select:
+
+```text
+AIVA LaunchPad
 ```
 
 Run the cells from top to bottom. The notebook loads:

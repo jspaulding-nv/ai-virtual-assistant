@@ -1,2 +1,4 @@
 deploy/compose/volumes/
 notebooks/.ipynb_checkpoints
+.venv-notebooks/
+.vscode/settings.json
