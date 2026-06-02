@@ -99,6 +99,7 @@ Copy the template:
 ```bash
 cp launchpad/.env.example .env.launchpad
 mkdir -p ~/.cache/nim
+code-server .env.launchpad
 ```
 
 Open `.env.launchpad` and update the NGC key:
