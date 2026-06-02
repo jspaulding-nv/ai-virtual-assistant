@@ -137,14 +137,24 @@ If this fails, confirm that the key is an NGC personal API key and that your acc
 
 This guide uses the existing GHCR application images tagged `nemotron3-milvus-cpu`. Those images are still valid for LaunchPad because they contain only the application services. Milvus itself, the local NIMs, the GPU allocation, and the GPU index type are selected by the Compose files and environment variables at runtime.
 
-Pull the prebuilt application images and NIM images:
+The LaunchPad path uses one LaunchPad-specific UI image tag, `nemotron3-launchpad-proxy`, so the UI can load under the VS Code Code Server port proxy path. This keeps the shared Brev UI image unchanged.
+
+Build the LaunchPad UI image locally once if staff have not already published it:
+
+```bash
+bash launchpad/build-launchpad-ui.sh
+```
+
+To publish it for other LaunchPad users, run the same script with `--push` after setting `GHCR_USER` and `GHCR_TOKEN`.
+
+Pull any missing prebuilt application images and NIM images:
 
 ```bash
 docker compose --env-file .env.launchpad \
   -f deploy/compose/docker-compose.yaml \
   -f deploy/compose/docker-compose.ghcr.yaml \
   -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim pull
+  --profile local-nim pull --policy missing
 ```
 
 Start the stack:
@@ -215,13 +225,19 @@ The unstructured retriever host debug endpoint is `http://127.0.0.1:18086` on La
 
 Return to the LaunchPad page and open the forwarded URL for port `3001`. This opens the sample AI Virtual Assistant UI.
 
-Do not use the VS Code **Ports** tab URL if it opens a path like:
+The LaunchPad UI image is patched to support the VS Code **Ports** tab URL, including paths like:
 
 ```text
 https://<launchpad-host>/coder/proxy/3001/
 ```
 
-That Code Server proxy path can cause the Next.js UI to request `/_next/static/...` assets from the LaunchPad domain root and render a blank page with 404 errors. Use the LaunchPad direct/secure port link for port `3001` instead. If you are using the LaunchPad browser desktop, you can also open:
+If the page is blank and browser developer tools show `/_next/static/...` 404 errors, confirm that `agent-frontend` is using the `nemotron3-launchpad-proxy` image tag:
+
+```bash
+docker ps --filter name=agent-frontend --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+```
+
+If you are using the LaunchPad browser desktop, you can also open:
 
 ```text
 http://127.0.0.1:3001/

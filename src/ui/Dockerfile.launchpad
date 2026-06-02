@@ -1,0 +1,26 @@
+FROM nvcr.io/nvidia/blueprint/aiva-customer-service-ui:1.1.0
+
+COPY src/ui/product_icon_fallback.js /tmp/product_icon_fallback.js
+COPY src/ui/patch_next_static_assets.js /tmp/patch_next_static_assets.js
+COPY src/ui/patch_code_server_proxy_assets.js /tmp/patch_code_server_proxy_assets.js
+
+RUN set -eux; \
+    node /tmp/patch_next_static_assets.js; \
+    node /tmp/patch_code_server_proxy_assets.js; \
+    patched=0; \
+    for root in /app /opt /usr/share/nginx/html /usr/src/app; do \
+        if [ -d "$root" ]; then \
+            for file in $(find "$root" -type f \( -name "*.js" -o -name "*.mjs" \) ! -path "*/node_modules/*" 2>/dev/null); do \
+                cat /tmp/product_icon_fallback.js >> "$file"; \
+                patched=$((patched + 1)); \
+            done; \
+        fi; \
+    done; \
+    if [ "$patched" -eq 0 ]; then \
+        for file in $(find / -type f \( -name "*.js" -o -name "*.mjs" \) ! -path "*/node_modules/*" ! -path "/legal/*" 2>/dev/null); do \
+            cat /tmp/product_icon_fallback.js >> "$file"; \
+            patched=$((patched + 1)); \
+        done; \
+    fi; \
+    find / -type f \( -name "*.gz" -o -name "*.br" \) -path "*/_next/*" -delete 2>/dev/null || true; \
+    test "$patched" -gt 0
