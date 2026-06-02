@@ -35,6 +35,8 @@ services:
         required: true
 
   unstructured-retriever:
+    ports: !override
+      - "18086:8081"
     environment:
       APP_LLM_MODELNAME: ${APP_LLM_MODELNAME:-nvidia/nemotron-3-nano-30b-a3b}
       APP_LLM_SERVERURL: ${APP_LLM_SERVERURL:-nemollm-inference:8000}

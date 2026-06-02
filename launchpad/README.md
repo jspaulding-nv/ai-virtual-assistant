@@ -92,6 +92,8 @@ nvidia-smi
 
 If another NIM is already using GPU memory, stop it only if it belongs to your lab session. Otherwise, ask staff before continuing so this stack does not compete for the H100s.
 
+LaunchPad instances may already run InfluxDB on host port `8086`. The LaunchPad Compose override publishes the unstructured retriever on host port `18086` instead, while other containers still use `unstructured-retriever:8081` on the Docker network.
+
 ## 4. Create The LaunchPad Environment File
 
 Copy the template:
@@ -199,6 +201,8 @@ Check application containers:
 ```bash
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 ```
+
+The unstructured retriever host debug endpoint is `http://127.0.0.1:18086` on LaunchPad because port `8086` is commonly occupied by InfluxDB.
 
 ## 8. Open The Sample UI
 
