@@ -11,14 +11,20 @@ RUN set -eux; \
     for root in /app /opt /usr/share/nginx/html /usr/src/app; do \
         if [ -d "$root" ]; then \
             for file in $(find "$root" -type f \( -name "*.js" -o -name "*.mjs" \) ! -path "*/node_modules/*" 2>/dev/null); do \
-                cat /tmp/product_icon_fallback.js >> "$file"; \
+                tmp_file="$(mktemp)"; \
+                cat /tmp/product_icon_fallback.js "$file" > "$tmp_file"; \
+                cat "$tmp_file" > "$file"; \
+                rm -f "$tmp_file"; \
                 patched=$((patched + 1)); \
             done; \
         fi; \
     done; \
     if [ "$patched" -eq 0 ]; then \
         for file in $(find / -type f \( -name "*.js" -o -name "*.mjs" \) ! -path "*/node_modules/*" ! -path "/legal/*" 2>/dev/null); do \
-            cat /tmp/product_icon_fallback.js >> "$file"; \
+            tmp_file="$(mktemp)"; \
+            cat /tmp/product_icon_fallback.js "$file" > "$tmp_file"; \
+            cat "$tmp_file" > "$file"; \
+            rm -f "$tmp_file"; \
             patched=$((patched + 1)); \
         done; \
     fi; \
