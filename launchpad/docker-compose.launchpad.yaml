@@ -91,7 +91,6 @@ services:
     image: nvcr.io/nim/nvidia/nemotron-3-nano:${NEMOTRON3_NANO_NIM_TAG:-2.0.5}
     environment:
       NGC_API_KEY: ${NGC_API_KEY}
-      NIM_MODEL_PROFILE: ${LLM_NIM_MODEL_PROFILE:-vllm-fp8-tp1-pp1}
       NIM_SERVED_MODEL_NAME: ${APP_LLM_MODELNAME:-nvidia/nemotron-3-nano-30b-a3b}
     deploy:
       resources:

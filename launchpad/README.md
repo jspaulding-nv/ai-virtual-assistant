@@ -33,7 +33,7 @@ The Compose override in this folder uses a split-GPU layout:
 - GPU `0`: Nemotron 3 Nano NIM
 - GPU `1`: embedding NIM, reranking NIM, and GPU Milvus
 
-Nemotron 3 Nano uses the `vllm-fp8-tp1-pp1` profile by default. This keeps the full local stack on a 2x H100 LaunchPad instance while leaving the second GPU for retrieval services and Milvus.
+Nemotron 3 Nano runs on GPU `0` and lets NIM select a compatible H100 profile from its model manifest. This keeps the full local stack on a 2x H100 LaunchPad instance while leaving the second GPU for retrieval services and Milvus.
 
 ## 1. Open The VS Code Environment
 
@@ -252,7 +252,7 @@ docker logs nemollm-inference-microservice --tail=200
 Also confirm the NGC key was updated and that the model cache is writable:
 
 ```bash
-grep -E '^(NGC_API_KEY|MODEL_DIRECTORY|USERID|LLM_NIM_MODEL_PROFILE|LLM_MS_GPU_ID)=' .env.launchpad
+grep -E '^(NGC_API_KEY|MODEL_DIRECTORY|USERID|NEMOTRON3_NANO_NIM_TAG|LLM_MS_GPU_ID)=' .env.launchpad
 ls -ld /home/nvidia/.cache/nim
 df -h /home/nvidia/.cache/nim
 nvidia-smi
