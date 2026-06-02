@@ -38,7 +38,29 @@ function walk(dir, visitor) {
   }
 }
 
-function rewriteAbsoluteSameOriginPaths(source) {
+function isNextStaticCss(filePath) {
+  const normalized = path.normalize(filePath);
+  return (
+    path.extname(normalized) === ".css" &&
+    (normalized.includes(`${path.sep}.next${path.sep}static${path.sep}css${path.sep}`) ||
+      normalized.includes(`${path.sep}_next${path.sep}static${path.sep}css${path.sep}`))
+  );
+}
+
+function rewriteCssAssetPaths(source) {
+  let next = source;
+
+  next = next.replace(/url\((["']?)\/_next\/static\/media\//g, "url($1../media/");
+  next = next.replace(/url\((["']?)\.\/_next\/static\/media\//g, "url($1../media/");
+
+  return next;
+}
+
+function rewriteAbsoluteSameOriginPaths(source, filePath) {
+  if (isNextStaticCss(filePath)) {
+    return rewriteCssAssetPaths(source);
+  }
+
   let next = source;
 
   // The code-server /proxy/<port>/ endpoint strips the proxy prefix before
@@ -50,6 +72,9 @@ function rewriteAbsoluteSameOriginPaths(source) {
 
   next = next.replace(/(["'`])\/favicon\.ico/g, "$1./favicon.ico");
   next = next.replace(/(\\["'`])\/favicon\.ico/g, "$1./favicon.ico");
+
+  next = next.replace(/(["'`])\/artifacts\//g, "$1./artifacts/");
+  next = next.replace(/(\\["'`])\/artifacts\//g, "$1./artifacts/");
 
   return next;
 }
@@ -74,12 +99,12 @@ for (const root of roots) {
       return;
     }
 
-    const next = rewriteAbsoluteSameOriginPaths(source);
+    const next = rewriteAbsoluteSameOriginPaths(source, filePath);
     if (next === source) {
       return;
     }
 
-    const matches = source.match(/\/_next\/|\/favicon\.ico/g);
+    const matches = source.match(/\/_next\/|\/favicon\.ico|\/artifacts\//g);
     replacementCount += matches ? matches.length : 1;
     fs.writeFileSync(filePath, next);
     patchedFiles += 1;
