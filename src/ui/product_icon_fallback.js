@@ -10,6 +10,7 @@
   var PATCHED_ATTR = "data-aiva-product-icon";
   var WATCHED_ATTR = "data-aiva-product-icon-watched";
   var DISABLED_TAG_ATTR = "data-aiva-disabled-tag";
+  var LINK_CACHE_BUSTER_ATTR = "data-aiva-launchpad-cache-buster";
   var TAG_TEXT =
     /^(agent blueprint|blueprint|customer service|retrieval-augmented generation|contact center)$/i;
   var MODEL_LABELS = [
@@ -28,6 +29,7 @@
   ];
   var PRODUCT_WORDS =
     /nvidia|geforce|rtx|shield|remote|tee|shirt|polo|jacket|vest|hoodie|jogger|pants|beanie|knit|cotton|lululemon|nike|north face|marine layer|mouse|mousepad|computer|care|kit|jetson|developer|gpu|graphics|mug|cup|coffee|ceramic|cooler|laptop|sleeve|case|bag/i;
+  var proxyPrefix = getCodeServerProxyPrefix();
 
   var iconRules = [
     { pattern: /geforce|rtx|gpu|graphics/i, icon: "fa-microchip", label: "GPU" },
@@ -42,6 +44,154 @@
     { pattern: /shield|remote|tv|controller/i, icon: "fa-gamepad", label: "Device" },
     { pattern: /care|kit|clean|sticker|webcam/i, icon: "fa-screwdriver-wrench", label: "Kit" },
   ];
+
+  function getCodeServerProxyPrefix() {
+    var match = window.location.pathname.match(/^(.*\/(?:coder\/)?proxy\/\d+\/)/);
+    return match ? match[1] : "";
+  }
+
+  function normalizeProxyAssetUrl(value) {
+    if (!proxyPrefix || typeof value !== "string") {
+      return value;
+    }
+
+    var nextValue = value.replace(
+      /^https:\/\/assets\.ngc\.nvidia\.com\/products\//,
+      "/artifacts/products/"
+    );
+
+    if (nextValue.indexOf(window.location.origin + "/") === 0) {
+      nextValue = nextValue.slice(window.location.origin.length);
+    }
+
+    if (/^\/(?:_next|artifacts|api)\//.test(nextValue) || nextValue === "/temp_image.jpg") {
+      return proxyPrefix + nextValue.replace(/^\//, "");
+    }
+
+    return value;
+  }
+
+  function patchProxyAssetRuntime() {
+    if (!proxyPrefix || window.__aivaLaunchPadProxyRuntime) {
+      return;
+    }
+    window.__aivaLaunchPadProxyRuntime = true;
+
+    patchFetch();
+    patchXhr();
+    patchSetAttribute();
+    patchUrlProperty(
+      typeof HTMLImageElement !== "undefined" ? HTMLImageElement.prototype : null,
+      "src"
+    );
+    patchUrlProperty(
+      typeof HTMLScriptElement !== "undefined" ? HTMLScriptElement.prototype : null,
+      "src"
+    );
+    patchUrlProperty(
+      typeof HTMLLinkElement !== "undefined" ? HTMLLinkElement.prototype : null,
+      "href"
+    );
+  }
+
+  function patchFetch() {
+    if (typeof window.fetch !== "function") {
+      return;
+    }
+
+    var originalFetch = window.fetch;
+    window.fetch = function (input, init) {
+      if (typeof input === "string") {
+        return originalFetch.call(this, normalizeProxyAssetUrl(input), init);
+      }
+
+      if (input && typeof input.url === "string") {
+        var nextUrl = normalizeProxyAssetUrl(input.url);
+        if (nextUrl !== input.url && typeof Request !== "undefined") {
+          return originalFetch.call(this, new Request(nextUrl, input), init);
+        }
+      }
+
+      return originalFetch.call(this, input, init);
+    };
+  }
+
+  function patchXhr() {
+    if (!window.XMLHttpRequest || !XMLHttpRequest.prototype.open) {
+      return;
+    }
+
+    var originalOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url) {
+      if (typeof url === "string") {
+        arguments[1] = normalizeProxyAssetUrl(url);
+      }
+      return originalOpen.apply(this, arguments);
+    };
+  }
+
+  function patchSetAttribute() {
+    var originalSetAttribute = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function (name, value) {
+      var lowerName = String(name || "").toLowerCase();
+      if ((lowerName === "src" || lowerName === "href") && typeof value === "string") {
+        return originalSetAttribute.call(this, name, normalizeProxyAssetUrl(value));
+      }
+      return originalSetAttribute.apply(this, arguments);
+    };
+  }
+
+  function patchUrlProperty(proto, propertyName) {
+    if (!proto) {
+      return;
+    }
+
+    var descriptor = Object.getOwnPropertyDescriptor(proto, propertyName);
+    if (!descriptor || typeof descriptor.set !== "function" || typeof descriptor.get !== "function") {
+      return;
+    }
+
+    Object.defineProperty(proto, propertyName, {
+      configurable: descriptor.configurable,
+      enumerable: descriptor.enumerable,
+      get: descriptor.get,
+      set: function (value) {
+        return descriptor.set.call(this, normalizeProxyAssetUrl(value));
+      },
+    });
+  }
+
+  function patchProxyAssetElements() {
+    if (!proxyPrefix || !document.body) {
+      return;
+    }
+
+    var elements = document.querySelectorAll("[src],[href]");
+    for (var i = 0; i < elements.length; i += 1) {
+      ["src", "href"].forEach(function (attr) {
+        if (!elements[i].hasAttribute(attr)) {
+          return;
+        }
+
+        var value = elements[i].getAttribute(attr);
+        var nextValue = normalizeProxyAssetUrl(value);
+        if (nextValue !== value) {
+          elements[i].setAttribute(attr, nextValue);
+        }
+      });
+    }
+
+    var cssLinks = document.querySelectorAll('link[rel="stylesheet"][href*="/_next/static/css/"]');
+    for (var j = 0; j < cssLinks.length; j += 1) {
+      if (cssLinks[j].hasAttribute(LINK_CACHE_BUSTER_ATTR)) {
+        continue;
+      }
+
+      cssLinks[j].setAttribute(LINK_CACHE_BUSTER_ATTR, "true");
+      cssLinks[j].href =
+        cssLinks[j].href + (cssLinks[j].href.indexOf("?") === -1 ? "?" : "&") + "aivaProxy=1";
+    }
+  }
 
   function ensureStyles() {
     if (!document.getElementById(FA_CSS_ID)) {
@@ -219,6 +369,8 @@
   }
 
   function patchAll() {
+    patchProxyAssetRuntime();
+    patchProxyAssetElements();
     patchModelLabels();
     disableHeaderTagLinks();
 
