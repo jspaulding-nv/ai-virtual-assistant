@@ -184,7 +184,7 @@ Run these checks after Compose shows the containers running:
 curl -fsS http://127.0.0.1:8000/v1/health/ready
 curl -s http://127.0.0.1:8000/v1/models | jq .
 curl -fsS http://127.0.0.1:9080/v1/health/ready
-curl -fsS http://127.0.0.1:1976/health
+curl -fsS http://127.0.0.1:1976/v1/health/ready
 curl -fsS http://127.0.0.1:9091/healthz
 ```
 
