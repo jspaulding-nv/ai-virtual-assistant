@@ -57,6 +57,10 @@ function rewriteCssAssetPaths(source) {
   return next;
 }
 
+function addCssCacheBuster(source) {
+  return source.replace(/((?:\.\/)?_next\/static\/css\/[^"'`\\?]+\.css)(?=["'`\\])/g, "$1?aivaProxy=1");
+}
+
 function rewriteAbsoluteSameOriginPaths(source, filePath) {
   if (isNextStaticCss(filePath)) {
     return rewriteCssAssetPaths(source);
@@ -89,6 +93,7 @@ function rewriteAbsoluteSameOriginPaths(source, filePath) {
   next = next.replace(/(["'`])\/temp_image\.jpg/g, "$1./temp_image.jpg");
   next = next.replace(/(\\["'`])\/temp_image\.jpg/g, "$1./temp_image.jpg");
   next = next.replace(/\\\/temp_image\.jpg/g, ".\\/temp_image.jpg");
+  next = addCssCacheBuster(next);
 
   return next;
 }

@@ -80,6 +80,7 @@
     patchFetch();
     patchXhr();
     patchSetAttribute();
+    patchStyleUrls();
     patchUrlProperty(
       typeof HTMLImageElement !== "undefined" ? HTMLImageElement.prototype : null,
       "src"
@@ -105,6 +106,13 @@
         return originalFetch.call(this, normalizeProxyAssetUrl(input), init);
       }
 
+      if (typeof URL !== "undefined" && input instanceof URL) {
+        var normalizedUrl = normalizeProxyAssetUrl(input.href);
+        if (normalizedUrl !== input.href) {
+          return originalFetch.call(this, normalizedUrl, init);
+        }
+      }
+
       if (input && typeof input.url === "string") {
         var nextUrl = normalizeProxyAssetUrl(input.url);
         if (nextUrl !== input.url && typeof Request !== "undefined") {
@@ -123,8 +131,8 @@
 
     var originalOpen = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function (method, url) {
-      if (typeof url === "string") {
-        arguments[1] = normalizeProxyAssetUrl(url);
+      if (typeof url === "string" || (typeof URL !== "undefined" && url instanceof URL)) {
+        arguments[1] = normalizeProxyAssetUrl(String(url));
       }
       return originalOpen.apply(this, arguments);
     };
@@ -139,6 +147,52 @@
       }
       return originalSetAttribute.apply(this, arguments);
     };
+  }
+
+  function normalizeCssUrlValue(value) {
+    if (!proxyPrefix || typeof value !== "string") {
+      return value;
+    }
+
+    return value.replace(/url\((["']?)([^"')]+)\1\)/g, function (match, quote, url) {
+      var nextUrl = normalizeProxyAssetUrl(url);
+      if (nextUrl === url) {
+        return match;
+      }
+
+      return "url(" + quote + nextUrl + quote + ")";
+    });
+  }
+
+  function patchStyleUrls() {
+    if (!window.CSSStyleDeclaration || !CSSStyleDeclaration.prototype.setProperty) {
+      return;
+    }
+
+    var originalSetProperty = CSSStyleDeclaration.prototype.setProperty;
+    CSSStyleDeclaration.prototype.setProperty = function (propertyName, value, priority) {
+      return originalSetProperty.call(this, propertyName, normalizeCssUrlValue(value), priority);
+    };
+
+    patchStyleProperty("background");
+    patchStyleProperty("backgroundImage");
+    patchStyleProperty("content");
+  }
+
+  function patchStyleProperty(propertyName) {
+    var descriptor = Object.getOwnPropertyDescriptor(CSSStyleDeclaration.prototype, propertyName);
+    if (!descriptor || typeof descriptor.set !== "function" || typeof descriptor.get !== "function") {
+      return;
+    }
+
+    Object.defineProperty(CSSStyleDeclaration.prototype, propertyName, {
+      configurable: descriptor.configurable,
+      enumerable: descriptor.enumerable,
+      get: descriptor.get,
+      set: function (value) {
+        return descriptor.set.call(this, normalizeCssUrlValue(value));
+      },
+    });
   }
 
   function patchUrlProperty(proto, propertyName) {
@@ -166,7 +220,7 @@
       return;
     }
 
-    var elements = document.querySelectorAll("[src],[href]");
+    var elements = document.querySelectorAll("[src],[href],[style]");
     for (var i = 0; i < elements.length; i += 1) {
       ["src", "href"].forEach(function (attr) {
         if (!elements[i].hasAttribute(attr)) {
@@ -179,6 +233,12 @@
           elements[i].setAttribute(attr, nextValue);
         }
       });
+
+      var style = elements[i].getAttribute("style");
+      var nextStyle = normalizeCssUrlValue(style);
+      if (nextStyle !== style) {
+        elements[i].setAttribute("style", nextStyle);
+      }
     }
 
     var cssLinks = document.querySelectorAll('link[rel="stylesheet"][href*="/_next/static/css/"]');
