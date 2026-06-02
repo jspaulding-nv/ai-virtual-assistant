@@ -52,6 +52,7 @@ function rewriteCssAssetPaths(source) {
 
   next = next.replace(/url\((["']?)\/_next\/static\/media\//g, "url($1../media/");
   next = next.replace(/url\((["']?)\.\/_next\/static\/media\//g, "url($1../media/");
+  next = next.replace(/url\((["']?)_next\/static\/media\//g, "url($1../media/");
 
   return next;
 }
@@ -68,13 +69,20 @@ function rewriteAbsoluteSameOriginPaths(source, filePath) {
   // so make browser-facing Next.js static paths relative instead.
   next = next.replace(/(["'`])\/_next\//g, "$1./_next/");
   next = next.replace(/(\\["'`])\/_next\//g, "$1./_next/");
+  next = next.replace(/\\\/_next\//g, ".\\/_next/");
   next = next.replace(/(url\()\/_next\//g, "$1./_next/");
 
   next = next.replace(/(["'`])\/favicon\.ico/g, "$1./favicon.ico");
   next = next.replace(/(\\["'`])\/favicon\.ico/g, "$1./favicon.ico");
+  next = next.replace(/\\\/favicon\.ico/g, ".\\/favicon.ico");
 
   next = next.replace(/(["'`])\/artifacts\//g, "$1./artifacts/");
   next = next.replace(/(\\["'`])\/artifacts\//g, "$1./artifacts/");
+  next = next.replace(/\\\/artifacts\//g, ".\\/artifacts/");
+
+  next = next.replace(/(["'`])\/temp_image\.jpg/g, "$1./temp_image.jpg");
+  next = next.replace(/(\\["'`])\/temp_image\.jpg/g, "$1./temp_image.jpg");
+  next = next.replace(/\\\/temp_image\.jpg/g, ".\\/temp_image.jpg");
 
   return next;
 }
@@ -104,7 +112,7 @@ for (const root of roots) {
       return;
     }
 
-    const matches = source.match(/\/_next\/|\/favicon\.ico|\/artifacts\//g);
+    const matches = source.match(/\/_next\/|\/favicon\.ico|\/artifacts\/|\/temp_image\.jpg/g);
     replacementCount += matches ? matches.length : 1;
     fs.writeFileSync(filePath, next);
     patchedFiles += 1;
