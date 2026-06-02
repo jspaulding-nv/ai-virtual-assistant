@@ -139,6 +139,8 @@ This guide uses the existing GHCR application images tagged `nemotron3-milvus-cp
 
 The LaunchPad path uses one LaunchPad-specific UI image tag, `nemotron3-launchpad-proxy`, so the UI can load under the VS Code Code Server port proxy path. This keeps the shared Brev UI image unchanged.
 
+The LaunchPad override also places a small nginx shim on host port `3001`. It forwards to the UI container, sets a clean upstream host header, and rewrites root-relative Next.js asset URLs so the VS Code **Ports** tab path works.
+
 Build the LaunchPad UI image locally once if staff have not already published it:
 
 ```bash
@@ -234,7 +236,7 @@ https://<launchpad-host>/coder/proxy/3001/
 If the page is blank and browser developer tools show `/_next/static/...` 404 errors, confirm that `agent-frontend` is using the `nemotron3-launchpad-proxy` image tag:
 
 ```bash
-docker ps --filter name=agent-frontend --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+docker ps --filter name=agent-frontend --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
 ```
 
 If you are using the LaunchPad browser desktop, you can also open:
