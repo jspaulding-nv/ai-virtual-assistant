@@ -277,8 +277,11 @@ this because it uses LangGraph tools for order and return workflows.
 The LaunchPad override starts Nemotron 3 Nano with:
 
 ```bash
-NIM_PASSTHROUGH_ARGS=--enable-auto-tool-choice --tool-call-parser nemotron_v3
+NIM_PASSTHROUGH_ARGS=--reasoning-parser nemotron_v3 --enable-auto-tool-choice --tool-call-parser qwen3_coder
 ```
+
+`nemotron_v3` parses the model reasoning format, while `qwen3_coder` parses
+OpenAI-compatible tool calls for the Nemotron 3 Nano vLLM examples.
 
 If health and models pass but chat completion or tool-choice requests fail,
 inspect the LLM NIM logs before moving on:
@@ -417,6 +420,10 @@ recreate the Nemotron 3 Nano NIM so it picks up the LaunchPad
 `NIM_PASSTHROUGH_ARGS` setting, then recreate the agent and API gateway:
 
 ```bash
+grep -q '^NIM_PASSTHROUGH_ARGS=' .env.launchpad \
+  && sed -i 's#^NIM_PASSTHROUGH_ARGS=.*#NIM_PASSTHROUGH_ARGS=--reasoning-parser nemotron_v3 --enable-auto-tool-choice --tool-call-parser qwen3_coder#' .env.launchpad \
+  || printf '\nNIM_PASSTHROUGH_ARGS=--reasoning-parser nemotron_v3 --enable-auto-tool-choice --tool-call-parser qwen3_coder\n' >> .env.launchpad
+
 docker compose --env-file .env.launchpad \
   -f deploy/compose/docker-compose.yaml \
   -f deploy/compose/docker-compose.ghcr.yaml \
