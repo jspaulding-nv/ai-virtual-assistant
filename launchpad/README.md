@@ -78,7 +78,7 @@ If you are preparing the instance before participants arrive, set up the noteboo
 bash launchpad/setup-notebook-kernel.sh
 ```
 
-This creates `.venv-notebooks`, installs the notebook dependencies, registers the `AIVA LaunchPad` Jupyter kernel, and configures that kernel to use the LaunchPad unstructured retriever host port `18086`.
+This installs the notebook dependencies, registers the `AIVA LaunchPad` Jupyter kernel, and configures that kernel to use the LaunchPad unstructured retriever host port `18086`. The script uses `.venv-notebooks` when Python venv support is installed; otherwise it falls back to a user-local Python install on the stock LaunchPad image.
 
 ## 3. Check The Instance
 
