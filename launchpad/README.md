@@ -215,6 +215,18 @@ The unstructured retriever host debug endpoint is `http://127.0.0.1:18086` on La
 
 Return to the LaunchPad page and open the forwarded URL for port `3001`. This opens the sample AI Virtual Assistant UI.
 
+Do not use the VS Code **Ports** tab URL if it opens a path like:
+
+```text
+https://<launchpad-host>/coder/proxy/3001/
+```
+
+That Code Server proxy path can cause the Next.js UI to request `/_next/static/...` assets from the LaunchPad domain root and render a blank page with 404 errors. Use the LaunchPad direct/secure port link for port `3001` instead. If you are using the LaunchPad browser desktop, you can also open:
+
+```text
+http://127.0.0.1:3001/
+```
+
 If port `3001` is not healthy yet, wait another minute and refresh the LaunchPad port list. The app waits on local NIM and database services during startup.
 
 ## 9. Ingest The Sample Data
