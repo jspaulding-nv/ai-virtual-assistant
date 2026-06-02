@@ -219,6 +219,40 @@ curl -sS http://127.0.0.1:8000/v1/chat/completions \
     "max_tokens": 64,
     "temperature": 0
   }' | jq -r '.choices[0].message.content'
+curl -sS http://127.0.0.1:8000/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "model": "nvidia/nemotron-3-nano-30b-a3b",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use the lookup_order tool for order A123."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "lookup_order",
+          "description": "Look up an order by ID.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "order_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "order_id"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "max_tokens": 128,
+    "temperature": 0
+  }' | jq '.choices[0].message'
 
 # Embedding NIM
 curl -fsS http://127.0.0.1:9080/v1/health/ready
@@ -236,8 +270,18 @@ The LLM model list should include:
 nvidia/nemotron-3-nano-30b-a3b
 ```
 
-The chat completion check should print a short model response. If health and
-models pass but chat completion fails, inspect the LLM NIM logs before moving on:
+The first chat completion check should print a short model response. The second
+check verifies that OpenAI-compatible tool calling is enabled; the agent requires
+this because it uses LangGraph tools for order and return workflows.
+
+The LaunchPad override starts Nemotron 3 Nano with:
+
+```bash
+NIM_PASSTHROUGH_ARGS=--enable-auto-tool-choice --tool-call-parser nemotron_v3
+```
+
+If health and models pass but chat completion or tool-choice requests fail,
+inspect the LLM NIM logs before moving on:
 
 ```bash
 docker logs nemollm-inference-microservice --tail=200
@@ -363,6 +407,31 @@ If the assistant responds with a generic message such as `I wasn't able to proce
 docker logs agent-chain-server --tail=200
 ```
 
+If the logs show this error:
+
+```text
+"auto" tool choice requires --enable-auto-tool-choice and --tool-call-parser to be set
+```
+
+recreate the Nemotron 3 Nano NIM so it picks up the LaunchPad
+`NIM_PASSTHROUGH_ARGS` setting, then recreate the agent and API gateway:
+
+```bash
+docker compose --env-file .env.launchpad \
+  -f deploy/compose/docker-compose.yaml \
+  -f deploy/compose/docker-compose.ghcr.yaml \
+  -f launchpad/docker-compose.launchpad.yaml \
+  --profile local-nim up -d --no-build --force-recreate nemollm-inference
+
+curl -fsS http://127.0.0.1:8000/v1/health/ready
+
+docker compose --env-file .env.launchpad \
+  -f deploy/compose/docker-compose.yaml \
+  -f deploy/compose/docker-compose.ghcr.yaml \
+  -f launchpad/docker-compose.launchpad.yaml \
+  --profile local-nim up -d --no-build --force-recreate agent-chain-server api-gateway-server
+```
+
 If the logs show `Graph Timeout Error`, increase `GRAPH_TIMEOUT_IN_SEC` in `.env.launchpad` and restart the agent and API gateway:
 
 ```bash
@@ -421,6 +490,8 @@ To build app containers locally, omit `deploy/compose/docker-compose.ghcr.yaml` 
 ## References
 
 - [Nemotron 3 Nano NIM support matrix](https://docs.nvidia.com/nim/large-language-models/latest/support-matrix.html)
+- [NIM LLM tool calling and MCP integration](https://docs.nvidia.com/nim/large-language-models/latest/advanced-use-cases/tool-calling-and-mcp.html)
+- [NIM custom parsers and chat templates](https://docs.nvidia.com/nim/large-language-models/latest/advanced-use-cases/custom-parsers-and-templates.html)
 - [NeMo Retriever Embedding NIM getting started](https://docs.nvidia.com/nim/nemo-retriever/text-embedding/1.13.0/getting-started.html)
 - [NeMo Retriever Reranking NIM support matrix](https://docs.nvidia.com/nim/nemo-retriever/text-reranking/latest/support-matrix.html)
 - [Milvus GPU index overview](https://milvus.io/docs/gpu-index-overview.md)
