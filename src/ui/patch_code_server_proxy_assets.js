@@ -4,7 +4,25 @@ const path = require("path");
 const roots = ["/app", "/opt", "/usr/share/nginx/html", "/usr/src/app"].filter((root) =>
   fs.existsSync(root)
 );
-const extensions = new Set([".html", ".js", ".mjs", ".json", ".css"]);
+const extensions = new Set([".html", ".js", ".mjs", ".css"]);
+
+function isPatchableClientAsset(filePath) {
+  const normalized = path.normalize(filePath);
+
+  if (normalized.includes(`${path.sep}.next${path.sep}server${path.sep}`)) {
+    return false;
+  }
+
+  if (normalized.includes(`${path.sep}.next${path.sep}cache${path.sep}`)) {
+    return false;
+  }
+
+  return (
+    normalized.includes(`${path.sep}.next${path.sep}static${path.sep}`) ||
+    normalized.includes(`${path.sep}_next${path.sep}static${path.sep}`) ||
+    (path.extname(normalized) === ".html" && !normalized.includes(`${path.sep}.next${path.sep}`))
+  );
+}
 
 function walk(dir, visitor) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -24,14 +42,11 @@ function rewriteAbsoluteSameOriginPaths(source) {
   let next = source;
 
   // The code-server /proxy/<port>/ endpoint strips the proxy prefix before
-  // forwarding to the app. Root-relative browser requests skip the proxy, so
-  // make Next.js static assets and same-origin API calls relative instead.
+  // forwarding to the app. Root-relative browser asset requests skip the proxy,
+  // so make browser-facing Next.js static paths relative instead.
   next = next.replace(/(["'`])\/_next\//g, "$1./_next/");
   next = next.replace(/(\\["'`])\/_next\//g, "$1./_next/");
   next = next.replace(/(url\()\/_next\//g, "$1./_next/");
-
-  next = next.replace(/(["'`])\/api(?=\/|["'`?])/g, "$1./api");
-  next = next.replace(/(\\["'`])\/api(?=\/|["'`?])/g, "$1./api");
 
   next = next.replace(/(["'`])\/favicon\.ico/g, "$1./favicon.ico");
   next = next.replace(/(\\["'`])\/favicon\.ico/g, "$1./favicon.ico");
@@ -48,6 +63,10 @@ for (const root of roots) {
       return;
     }
 
+    if (!isPatchableClientAsset(filePath)) {
+      return;
+    }
+
     let source;
     try {
       source = fs.readFileSync(filePath, "utf8");
@@ -60,7 +79,7 @@ for (const root of roots) {
       return;
     }
 
-    const matches = source.match(/\/_next\/|\/api(?=\/|["'`?])|\/favicon\.ico/g);
+    const matches = source.match(/\/_next\/|\/favicon\.ico/g);
     replacementCount += matches ? matches.length : 1;
     fs.writeFileSync(filePath, next);
     patchedFiles += 1;
