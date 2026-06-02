@@ -402,6 +402,24 @@ Use an NGC personal API key, not a hosted API Catalog key. The key must have acc
 
 Run `notebooks/ingest_data.ipynb` and wait for ingestion to finish. The application UI can open before Milvus and Postgres contain the sample data.
 
+To confirm that the product manuals are actually searchable, query the
+unstructured retriever directly:
+
+```bash
+curl -s http://127.0.0.1:18086/documents | jq .
+
+curl -sS http://127.0.0.1:18086/search \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "query": "RTX 4080 Super installation PCI Express power connector",
+    "top_k": 8
+  }' | jq '.chunks[] | {filename, score, content: (.content[:300])}'
+```
+
+The search results should include chunks from the GeForce RTX 4080 SUPER user
+guide or quick-start guide. If they do not, rerun the manual-ingestion cells in
+`notebooks/ingest_data.ipynb`.
+
 ### The UI Returns A Generic Fallback Message
 
 If the assistant responds with a generic message such as `I wasn't able to process your input`, check the agent logs:

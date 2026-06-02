@@ -22,6 +22,7 @@ services:
       APP_LLM_SERVERURL: ${APP_LLM_SERVERURL:-nemollm-inference:8000}
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-local-nim}
       GRAPH_TIMEOUT_IN_SEC: ${GRAPH_TIMEOUT_IN_SEC:-120}
+      APP_PRODUCT_QA_TOP_K: ${APP_PRODUCT_QA_TOP_K:-8}
     depends_on:
       unstructured-retriever:
         condition: service_started

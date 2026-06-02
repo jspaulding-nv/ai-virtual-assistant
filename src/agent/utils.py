@@ -15,7 +15,7 @@
 import re
 import os
 import logging
-from typing import Dict
+from typing import Dict, List, Any
 from pydantic import BaseModel, Field
 from urllib.parse import urlparse
 
@@ -230,13 +230,59 @@ def remove_state_from_checkpointer(session_id):
         # For other supported checkpointer(i.e. inmemory) we don't need cleanup
         pass
 
+def _product_qa_top_k() -> int:
+    try:
+        return max(1, min(25, int(os.getenv("APP_PRODUCT_QA_TOP_K", "8"))))
+    except ValueError:
+        logger.warning("Invalid APP_PRODUCT_QA_TOP_K value. Falling back to 8.")
+        return 8
+
+
+def _canonical_search(query: str, top_k: int, conv_history: list | None = None) -> List[Dict[str, Any]]:
+    entry_doc_search = {"query": query, "top_k": top_k}
+    if conv_history:
+        entry_doc_search["conv_history"] = conv_history
+
+    response = requests.post(canonical_rag_search, json=entry_doc_search, timeout=60)
+    response.raise_for_status()
+    return response.json().get("chunks", [])
+
+
 def canonical_rag(query: str, conv_history: list)  -> str:
     """Use this for answering generic queries about products, specifications, warranties, usage, and issues."""
 
-    entry_doc_search = {"query": query, "top_k": 4, "conv_history": conv_history}
-    response = requests.post(canonical_rag_search, json=entry_doc_search).json()
+    top_k = _product_qa_top_k()
+    chunks: List[Dict[str, Any]] = []
+    seen = set()
 
-    # Extract and aggregate the content
-    aggregated_content = "\n".join(chunk["content"] for chunk in response.get("chunks", []))
+    search_requests = [(query, None)]
+    if conv_history:
+        search_requests.append((query, conv_history))
+
+    for search_query, history in search_requests:
+        try:
+            for chunk in _canonical_search(search_query, top_k, history):
+                content = chunk.get("content", "")
+                filename = chunk.get("filename", "")
+                dedupe_key = (filename, content[:300])
+                if not content or dedupe_key in seen:
+                    continue
+
+                chunks.append(chunk)
+                seen.add(dedupe_key)
+                if len(chunks) >= top_k:
+                    break
+        except Exception as e:
+            logger.warning("Canonical RAG search failed for query %r: %s", search_query, e)
+
+        if len(chunks) >= top_k:
+            break
+
+    # Extract and aggregate the content. Include the filename so the LLM can
+    # recognize when the retrieved context came from a specific product guide.
+    aggregated_content = "\n\n".join(
+        f"Source: {chunk.get('filename', '')}\n{chunk.get('content', '')}"
+        for chunk in chunks
+    )
 
     return aggregated_content
