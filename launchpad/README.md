@@ -183,10 +183,17 @@ docker logs -f milvus-standalone
 Run these checks after Compose shows the containers running:
 
 ```bash
+# Nemotron 3 Nano LLM NIM
 curl -fsS http://127.0.0.1:8000/v1/health/ready
 curl -s http://127.0.0.1:8000/v1/models | jq .
+
+# Embedding NIM
 curl -fsS http://127.0.0.1:9080/v1/health/ready
+
+# Reranking NIM. Use /v1/health/ready; /health returns 404.
 curl -fsS http://127.0.0.1:1976/v1/health/ready
+
+# GPU Milvus
 curl -fsS http://127.0.0.1:9091/healthz
 ```
 
