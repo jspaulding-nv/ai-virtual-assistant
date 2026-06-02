@@ -113,20 +113,20 @@ The LaunchPad `nvidia` user normally has UID `1000` and GID `1000`, so these def
 ```text
 MODEL_DIRECTORY=/home/nvidia/.cache/nim
 USERID=1000:1000
+UID=1000
+GID=1000
 ```
 
 The rest of the defaults are already set for the 2x H100 LaunchPad layout.
 
 ## 5. Authenticate With NGC
 
-Load the env file and authenticate Docker to `nvcr.io`:
+Read the NGC key from the env file and authenticate Docker to `nvcr.io`:
 
 ```bash
-set -a
-source .env.launchpad
-set +a
-
+NGC_API_KEY="$(grep '^NGC_API_KEY=' .env.launchpad | cut -d= -f2-)"
 echo "${NGC_API_KEY}" | docker login nvcr.io -u '$oauthtoken' --password-stdin
+unset NGC_API_KEY
 ```
 
 If this fails, confirm that the key is an NGC personal API key and that your account has access to the NIM containers.
@@ -240,6 +240,37 @@ docker compose --env-file .env.launchpad \
 ### NIM Containers Take A Long Time
 
 The first run downloads model assets to `MODEL_DIRECTORY`. Watch the NIM logs and leave the terminal open until health checks pass.
+
+### Nemotron 3 Nano Exits During Startup
+
+If Compose reports `container nemollm-inference-microservice exited (0)`, inspect the LLM NIM logs before restarting:
+
+```bash
+docker logs nemollm-inference-microservice --tail=200
+```
+
+Also confirm the NGC key was updated and that the model cache is writable:
+
+```bash
+grep -E '^(NGC_API_KEY|MODEL_DIRECTORY|USERID|LLM_NIM_MODEL_PROFILE|LLM_MS_GPU_ID)=' .env.launchpad
+ls -ld /home/nvidia/.cache/nim
+df -h /home/nvidia/.cache/nim
+nvidia-smi
+```
+
+Do not paste the full `NGC_API_KEY` into chat or screenshots. If the logs show an auth or entitlement error, replace `NGC_API_KEY` with an NGC personal API key that can access NIM containers and model assets. If the logs show another process using GPU memory, stop only workloads that belong to your lab session or ask staff for help.
+
+After correcting the issue, restart the LLM NIM first:
+
+```bash
+docker compose --env-file .env.launchpad \
+  -f deploy/compose/docker-compose.yaml \
+  -f deploy/compose/docker-compose.ghcr.yaml \
+  -f launchpad/docker-compose.launchpad.yaml \
+  --profile local-nim up -d nemollm-inference
+```
+
+When the LLM health check passes, rerun the full `up -d --no-build` command.
 
 ### NGC Login Fails
 

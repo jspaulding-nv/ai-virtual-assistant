@@ -84,6 +84,9 @@ services:
         condition: service_healthy
         required: true
 
+  pgadmin:
+    user: ${USERID:-1000:1000}
+
   nemollm-inference:
     image: nvcr.io/nim/nvidia/nemotron-3-nano:${NEMOTRON3_NANO_NIM_TAG:-2.0.5}
     environment:
