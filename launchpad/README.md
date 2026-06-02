@@ -206,6 +206,19 @@ Run these checks after Compose shows the containers running:
 # Nemotron 3 Nano LLM NIM
 curl -fsS http://127.0.0.1:8000/v1/health/ready
 curl -s http://127.0.0.1:8000/v1/models | jq .
+curl -sS http://127.0.0.1:8000/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "model": "nvidia/nemotron-3-nano-30b-a3b",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer in one short sentence: is this local NIM reachable?"
+      }
+    ],
+    "max_tokens": 64,
+    "temperature": 0
+  }' | jq -r '.choices[0].message.content'
 
 # Embedding NIM
 curl -fsS http://127.0.0.1:9080/v1/health/ready
@@ -221,6 +234,13 @@ The LLM model list should include:
 
 ```text
 nvidia/nemotron-3-nano-30b-a3b
+```
+
+The chat completion check should print a short model response. If health and
+models pass but chat completion fails, inspect the LLM NIM logs before moving on:
+
+```bash
+docker logs nemollm-inference-microservice --tail=200
 ```
 
 Check application containers:
@@ -334,6 +354,30 @@ Use an NGC personal API key, not a hosted API Catalog key. The key must have acc
 ### The UI Is Up But Answers Are Not Data-Backed
 
 Run `notebooks/ingest_data.ipynb` and wait for ingestion to finish. The application UI can open before Milvus and Postgres contain the sample data.
+
+### The UI Returns A Generic Fallback Message
+
+If the assistant responds with a generic message such as `I wasn't able to process your input`, check the agent logs:
+
+```bash
+docker logs agent-chain-server --tail=200
+```
+
+If the logs show `Graph Timeout Error`, increase `GRAPH_TIMEOUT_IN_SEC` in `.env.launchpad` and restart the agent and API gateway:
+
+```bash
+GRAPH_TIMEOUT_IN_SEC=120
+```
+
+```bash
+docker compose --env-file .env.launchpad \
+  -f deploy/compose/docker-compose.yaml \
+  -f deploy/compose/docker-compose.ghcr.yaml \
+  -f launchpad/docker-compose.launchpad.yaml \
+  --profile local-nim up -d --no-build --force-recreate agent-chain-server api-gateway-server
+```
+
+The LaunchPad default is `120` seconds because local Nemotron 3 Nano can take longer than hosted NIMs for the first full agent turn.
 
 ### Milvus Fails After Switching From CPU To GPU
 
