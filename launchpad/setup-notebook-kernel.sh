@@ -75,12 +75,15 @@ KERNEL_JSON="${HOME}/.local/share/jupyter/kernels/${KERNEL_NAME}/kernel.json"
 export REPO_ROOT
 export KERNEL_PYTHON
 export KERNEL_JSON
+export KERNEL_NAME
+export KERNEL_DISPLAY_NAME
 export AIVA_INGEST_HOST
 export AIVA_UNSTRUCTURED_DATA_PORT
 
 "${KERNEL_PYTHON}" - <<'PY'
 import json
 import os
+import subprocess
 from pathlib import Path
 
 kernel_json = Path(os.environ["KERNEL_JSON"])
@@ -104,13 +107,49 @@ else:
 settings_data["python.defaultInterpreterPath"] = os.environ["KERNEL_PYTHON"]
 settings_data["jupyter.notebookFileRoot"] = "${workspaceFolder}"
 settings_path.write_text(json.dumps(settings_data, indent=2) + "\n")
+
+try:
+    python_version = subprocess.check_output(
+        [os.environ["KERNEL_PYTHON"], "-c", "import platform; print(platform.python_version())"],
+        text=True,
+    ).strip()
+except Exception:
+    python_version = ""
+
+for notebook_path in [
+    Path(os.environ["REPO_ROOT"]) / "notebooks" / "ai_virtual_assistant_notebook_launchpad.ipynb",
+]:
+    if not notebook_path.exists():
+        continue
+
+    notebook = json.loads(notebook_path.read_text())
+    metadata = notebook.setdefault("metadata", {})
+    metadata["kernelspec"] = {
+        "display_name": os.environ["KERNEL_DISPLAY_NAME"],
+        "language": "python",
+        "name": os.environ["KERNEL_NAME"],
+    }
+    language_info = metadata.setdefault("language_info", {})
+    language_info.setdefault("name", "python")
+    language_info.setdefault("codemirror_mode", {"name": "ipython", "version": 3})
+    language_info.setdefault("file_extension", ".py")
+    language_info.setdefault("mimetype", "text/x-python")
+    language_info.setdefault("pygments_lexer", "ipython3")
+    if python_version:
+        language_info["version"] = python_version
+
+    notebook_path.write_text(json.dumps(notebook, indent=2) + "\n")
 PY
 
 printf 'Registered Jupyter kernel: %s (%s)\n' "${KERNEL_DISPLAY_NAME}" "${KERNEL_NAME}"
 printf 'Kernel Python: %s\n' "${KERNEL_PYTHON}"
 printf 'Kernel spec: %s\n' "${KERNEL_JSON}"
+printf '%s\n' \
+  "Stamped copied LaunchPad notebook metadata for this kernel when the notebook exists."
 printf 'Notebook ingestion endpoint: http://%s:%s\n' \
   "${AIVA_INGEST_HOST}" \
   "${AIVA_UNSTRUCTURED_DATA_PORT}"
+printf '%s\n' \
+  "In VS Code, use Select Another Kernel... > Jupyter Kernel... > ${KERNEL_DISPLAY_NAME}."
 printf '%s\n' \
   "If VS Code does not show this kernel immediately, reload the browser tab or run Developer: Reload Window."

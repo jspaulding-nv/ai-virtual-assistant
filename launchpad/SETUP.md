@@ -107,13 +107,15 @@ bash launchpad/setup-notebook-kernel.sh
 
 This creates the `AIVA LaunchPad` kernel and configures it to use the LaunchPad unstructured retriever host port `18086`.
 
+The script also stamps the copied `notebooks/ai_virtual_assistant_notebook_launchpad.ipynb` metadata with the `AIVA LaunchPad` kernelspec so VS Code can auto-select it when possible.
+
 The global `jupyter` command may not be installed on LaunchPad, even when the kernel is registered correctly. Verify the user kernelspec directly:
 
 ```bash
 test -f ~/.local/share/jupyter/kernels/aiva-launchpad/kernel.json
 ```
 
-If VS Code still asks for a kernel, choose **Select Another Kernel...** and look for `AIVA LaunchPad`. If it does not appear, reload the browser tab or run **Developer: Reload Window**.
+If VS Code still asks for a kernel on first open, choose **Select Another Kernel...** > **Jupyter Kernel...** > `AIVA LaunchPad`. VS Code stores kernel choices in its own UI state; the notebook metadata lets it auto-select the kernel when its cache can match the installed kernelspec, but a first-open prompt is still possible. If `AIVA LaunchPad` does not appear, reload the browser tab or run **Developer: Reload Window**.
 
 ## 5. Create The LaunchPad Env File
 
