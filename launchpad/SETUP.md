@@ -82,7 +82,7 @@ bash launchpad/prepare-launchpad-instance.sh \
 
 Run `bash launchpad/prepare-launchpad-instance.sh --help` for all options, including `--skip-pull`, `--skip-manuals`, and `--timeout`.
 
-If a later notebook run fails with `failed to bind host port 0.0.0.0:9000/tcp: address already allocated`, a previous stack is still running or partially running. Stop it before rerunning the notebook:
+If a later notebook run fails with a host-port bind error, a previous stack is still running or partially running. Stop it before rerunning the notebook:
 
 ```bash
 docker compose --env-file .env.launchpad \
