@@ -108,6 +108,9 @@ PY
 
 printf 'Registered Jupyter kernel: %s (%s)\n' "${KERNEL_DISPLAY_NAME}" "${KERNEL_NAME}"
 printf 'Kernel Python: %s\n' "${KERNEL_PYTHON}"
+printf 'Kernel spec: %s\n' "${KERNEL_JSON}"
 printf 'Notebook ingestion endpoint: http://%s:%s\n' \
   "${AIVA_INGEST_HOST}" \
   "${AIVA_UNSTRUCTURED_DATA_PORT}"
+printf '%s\n' \
+  "If VS Code does not show this kernel immediately, reload the browser tab or run Developer: Reload Window."
