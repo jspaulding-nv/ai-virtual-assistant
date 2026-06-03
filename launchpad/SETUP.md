@@ -264,11 +264,43 @@ The sample UI is available from the Code Server **Ports** tab next to the **Term
 
 ## 11. Teardown / Reset After The Lab
 
-Run teardown commands from the repo root:
+Recommended automated teardown from the repo root:
 
 ```bash
 cd ~/ai-virtual-assistant
+bash launchpad/teardown-launchpad-instance.sh --yes
 ```
+
+This stops the LaunchPad Compose stack, removes participant-ingested service data, removes the copied participant notebook, restores `.env.launchpad` from `launchpad/.env.example`, and logs out of `nvcr.io`.
+
+To also reclaim NIM model cache and Docker image disk space:
+
+```bash
+cd ~/ai-virtual-assistant
+bash launchpad/teardown-launchpad-instance.sh \
+  --yes \
+  --remove-nim-cache \
+  --remove-images
+```
+
+To return an instance to a near-stock LaunchPad state, remove the repo clone last:
+
+```bash
+cd ~/ai-virtual-assistant
+bash launchpad/teardown-launchpad-instance.sh \
+  --yes \
+  --remove-nim-cache \
+  --remove-images \
+  --remove-repo
+```
+
+Preview actions without changing the instance:
+
+```bash
+bash launchpad/teardown-launchpad-instance.sh --dry-run --remove-nim-cache --remove-images
+```
+
+Manual teardown commands are below for reference.
 
 If the stack is running with a staff NGC key, stop the containers before resetting `.env.launchpad`. Running containers retain their environment values until they are recreated.
 
