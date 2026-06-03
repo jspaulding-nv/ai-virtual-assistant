@@ -77,7 +77,7 @@ SKIP_PULL=0
 SKIP_MANUALS=0
 SKIP_KERNEL=0
 HEALTH_TIMEOUT=3600
-CLEANUP_STACK_ON_EXIT=0
+STACK_STARTED=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -152,9 +152,10 @@ COMPOSE_CMD=(
 )
 
 cleanup_stack() {
-  if (( CLEANUP_STACK_ON_EXIT == 1 )); then
+  if (( STOP_AFTER_WARM == 1 && STACK_STARTED == 1 )); then
     log "Stopping the stack because --stop-after-warm was requested"
     "${COMPOSE_CMD[@]}" down --remove-orphans || true
+    STACK_STARTED=0
   fi
 }
 
@@ -226,10 +227,10 @@ if (( WARM_STACK == 1 )); then
   fi
 
   if (( STOP_AFTER_WARM == 1 )); then
-    CLEANUP_STACK_ON_EXIT=1
     trap cleanup_stack EXIT
   fi
 
+  STACK_STARTED=1
   "${COMPOSE_CMD[@]}" up -d --no-build
 
   log "Waiting for warm-up health checks"
@@ -242,10 +243,9 @@ if (( WARM_STACK == 1 )); then
   "${COMPOSE_CMD[@]}" ps
 
   if (( STOP_AFTER_WARM == 1 )); then
-    log "Stopping the stack after warm-up"
-    "${COMPOSE_CMD[@]}" down --remove-orphans
-    CLEANUP_STACK_ON_EXIT=0
+    cleanup_stack
     trap - EXIT
+    log "Warm-up complete; stack stopped because --stop-after-warm was set"
   fi
 else
   log "Skipping full-stack warm-up"
