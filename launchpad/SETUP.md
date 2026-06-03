@@ -67,17 +67,17 @@ Full prep, which also starts the stack once so local NIM model assets can downlo
 ```bash
 cd ~/ai-virtual-assistant
 bash launchpad/prepare-launchpad-instance.sh \
-  --api-key '<temporary-nvidia-personal-key>' \
-  --warm
+  --warm \
+  --api-key '<temporary-nvidia-personal-key>'
 ```
 
 If you want to warm the model cache but hand participants a stopped stack, add `--stop-after-warm`:
 
 ```bash
 bash launchpad/prepare-launchpad-instance.sh \
-  --api-key '<temporary-nvidia-personal-key>' \
   --warm \
-  --stop-after-warm
+  --stop-after-warm \
+  --api-key '<temporary-nvidia-personal-key>'
 ```
 
 Run `bash launchpad/prepare-launchpad-instance.sh --help` for all options, including `--skip-pull`, `--skip-manuals`, and `--timeout`.

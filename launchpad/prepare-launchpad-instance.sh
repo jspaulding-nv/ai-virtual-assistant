@@ -4,7 +4,7 @@ set -Eeuo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  bash launchpad/prepare-launchpad-instance.sh --api-key <temporary-ngc-personal-key> [options]
+  bash launchpad/prepare-launchpad-instance.sh [options] --api-key <temporary-ngc-personal-key>
 
 Automates the repetitive LaunchPad staff setup steps after the repository has
 already been cloned or refreshed.
