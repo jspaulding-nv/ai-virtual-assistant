@@ -1,6 +1,6 @@
 # Participant Guide: AI Virtual Assistant on LaunchPad
 
-Welcome. In this lab, you will deploy the NVIDIA AI Virtual Assistant blueprint on a LaunchPad instance with **2 H100 GPUs**. The stack runs the `nemotron3-milvus-cpu` branch of the application with Docker Compose, local NVIDIA NIM microservices, and GPU-accelerated Milvus.
+Welcome. In this lab, you will deploy the NVIDIA AI Virtual Assistant blueprint on a LaunchPad instance with **2 H100 GPUs**. Lab staff should have already prepared the instance with the repository, notebook kernel, Docker images, and LaunchPad deployment notebook.
 
 You will self-host:
 
@@ -9,24 +9,21 @@ You will self-host:
 - NVIDIA llama-nemotron-rerank-1b-v2 NIM for reranking
 - Milvus standalone with the GPU image and GPU vector indexes
 
-You need an NGC personal API key with access to NIM containers and model assets. You do not need a hosted NVIDIA API Catalog key for inference in this LaunchPad path.
+Your instructor or lab staff will provide the temporary NGC key for the local NIM containers if the instance was not already configured with one. You do not need a hosted NVIDIA API Catalog key for inference in this LaunchPad path.
 
 ## NVIDIA LaunchPad Environment
 
 NVIDIA LaunchPad provides a ready-to-use GPU development environment with common tools and IDE access already configured.
 
-This deployment expects:
+This participant guide assumes staff completed [SETUP.md](./SETUP.md), which prepares:
 
-- LaunchPad instance with 2 H100 GPUs
-- Git
-- Docker and Docker Compose v2
-- NVIDIA Container Toolkit
-- Code Server IDE access
-- Enough local disk space for NIM model cache and Docker volumes
+- The `~/ai-virtual-assistant` repository checkout
+- The `AIVA LaunchPad` notebook kernel
+- Pre-pulled Docker images, including the published LaunchPad UI image
+- A copied deployment notebook at `notebooks/ai_virtual_assistant_notebook_launchpad.ipynb`
+- Sample manuals, and optionally warmed local NIM model caches
 
-Use the **Code Server IDE** for host setup and troubleshooting. LaunchPad may also provide browser desktop, WebSSH, or Jupyter Notebook access if you prefer those tools.
-
-The LaunchPad Jupyter Notebook link at `/launch/notebook` is commonly backed by an automatically managed container such as `lp-jupyter-notebook:24.04`. Run the managed-Jupyter setup step below if you want that JupyterLab terminal and notebook kernel to use the host Docker daemon.
+Use the **Code Server IDE** for this lab. LaunchPad also exposes a **Jupyter Notebook** resource, but that resource is commonly backed by an automatically managed container such as `lp-jupyter-notebook:24.04`. Its terminal is not the host shell used by this Docker Compose lab.
 
 ## Local Model And GPU Layout
 
@@ -37,7 +34,7 @@ The Compose override in this folder uses a split-GPU layout:
 
 Nemotron 3 Nano runs on GPU `0` and lets NIM select a compatible H100 profile from its model manifest. This keeps the full local stack on a 2x H100 LaunchPad instance while leaving the second GPU for retrieval services and Milvus.
 
-## 1. Open The VS Code Environment
+## 1. Open The Code Server IDE
 
 Staff will provide the LaunchPad URL for your lab environment. It will look like this:
 
@@ -48,285 +45,49 @@ https://<uuid>.nvidialaunchpad.com/launch
 1. Open the LaunchPad URL in your browser.
 2. Sign in with your NVIDIA account.
 3. Open the **Resources** menu and select **Code Server IDE**.
-4. In VS Code, create a new Bash terminal with **Terminal > New Terminal**.
+4. Open the `~/ai-virtual-assistant` folder if it is not already open.
 
-## 2. Clone The Blueprint Repository
+The sample UI link for port `3001` will appear later in the VS Code **Ports** tab next to the **Terminal** tab.
 
-Clone the lab branch into your LaunchPad home directory:
+## 2. Run The Deployment Notebook
 
-```bash
-cd ~
-git clone --branch nemotron3-milvus-cpu --single-branch \
-  https://github.com/jspaulding-nv/ai-virtual-assistant.git
-cd ~/ai-virtual-assistant
-```
-
-Confirm that you are on the expected branch:
-
-```bash
-git branch --show-current
-test -f deploy/compose/docker-compose.yaml
-```
-
-Expected branch:
+Open this notebook:
 
 ```text
-nemotron3-milvus-cpu
+notebooks/ai_virtual_assistant_notebook_launchpad.ipynb
 ```
 
-If you are preparing the instance before participants arrive, set up the notebook kernel now:
+Run the cells from top to bottom. Use the `AIVA LaunchPad` kernel if VS Code asks you to choose one.
 
-```bash
-bash launchpad/setup-notebook-kernel.sh
-```
+The notebook will:
 
-This installs the notebook dependencies, registers the `AIVA LaunchPad` Jupyter kernel, and configures that kernel to use the LaunchPad unstructured retriever host port `18086`. The script uses `.venv-notebooks` when Python venv support is installed; otherwise it falls back to a user-local Python install on the stock LaunchPad image.
+- Reuse the staff-prepared `.env.launchpad`, or prompt for the lab NGC key if needed
+- Validate Docker, GPU, and LaunchPad Compose configuration
+- Pull any missing images
+- Start the local-NIM Docker Compose stack
+- Download sample product manuals
+- Point you to the VS Code **Ports** tab for port `3001`
 
-### Optional: Prepare The Managed Jupyter Notebook Resource
+The first startup can still take a while if the local NIM model cache was not fully warmed before handoff.
 
-If users will work from **Resources > Jupyter Notebook** instead of VS Code, open the Jupyter resource once so LaunchPad starts its `jupyter-notebook` container, then run this from the Code Server or WebSSH host terminal:
+## 3. Ingest The Sample Data
 
-```bash
-bash launchpad/setup-managed-jupyter.sh
-```
-
-This script prepares the LaunchPad-managed workspace at:
+After the deployment notebook starts the services, open:
 
 ```text
-/opt/nvidia/launchpad/jupyter-notebook
+notebooks/ingest_data.ipynb
 ```
 
-It copies this repo into that workspace, adds a top-level notebook named:
+Use the `AIVA LaunchPad` kernel when prompted, then run the cells from top to bottom.
 
-```text
-ai_virtual_assistant_notebook.ipynb
-```
+The ingestion notebook loads:
 
-and configures Docker access from the managed Jupyter container. After it finishes, users can open **Resources > Jupyter Notebook**, run `ai_virtual_assistant_notebook.ipynb`, and use `docker`, `docker compose`, and `docker logs` from Jupyter terminals.
+- Product manuals and FAQ documents into GPU-backed Milvus collections
+- Structured customer and order data into Postgres
 
-The script exposes the host Docker socket to the managed Jupyter container. That is appropriate for this trusted lab instance, but it should not be enabled for untrusted users.
+## 4. Open The Sample UI
 
-## 3. Check The Instance
-
-Confirm that Docker Compose and the H100 GPUs are visible:
-
-```bash
-docker compose version
-nvidia-smi
-```
-
-You should see two H100 GPUs.
-
-Check whether any NIM containers are already running before starting this lab:
-
-```bash
-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep -i nim || true
-nvidia-smi
-```
-
-If another NIM is already using GPU memory, stop it only if it belongs to your lab session. Otherwise, ask staff before continuing so this stack does not compete for the H100s.
-
-LaunchPad instances may already run InfluxDB on host port `8086`. The LaunchPad Compose override publishes the unstructured retriever on host port `18086` instead, while other containers still use `unstructured-retriever:8081` on the Docker network.
-
-## 4. Create The LaunchPad Environment File
-
-Copy the template:
-
-```bash
-cp launchpad/.env.example .env.launchpad
-mkdir -p ~/.cache/nim
-code-server .env.launchpad
-```
-
-Open `.env.launchpad` and update the NGC key:
-
-```text
-NGC_API_KEY=<your-ngc-personal-api-key>
-```
-
-The LaunchPad `nvidia` user normally has UID `1000` and GID `1000`, so these defaults should stay unchanged:
-
-```text
-MODEL_DIRECTORY=/home/nvidia/.cache/nim
-USERID=1000:1000
-UID=1000
-GID=1000
-```
-
-The rest of the defaults are already set for the 2x H100 LaunchPad layout.
-
-## 5. Authenticate With NGC
-
-Read the NGC key from the env file and authenticate Docker to `nvcr.io`:
-
-```bash
-NGC_API_KEY="$(grep '^NGC_API_KEY=' .env.launchpad | cut -d= -f2-)"
-echo "${NGC_API_KEY}" | docker login nvcr.io -u '$oauthtoken' --password-stdin
-unset NGC_API_KEY
-```
-
-If this fails, confirm that the key is an NGC personal API key and that your account has access to the NIM containers.
-
-## 6. Start The Full Local Stack
-
-This guide uses the existing GHCR application images tagged `nemotron3-milvus-cpu`. Those images are still valid for LaunchPad because they contain only the application services. Milvus itself, the local NIMs, the GPU allocation, and the GPU index type are selected by the Compose files and environment variables at runtime.
-
-The LaunchPad path uses one LaunchPad-specific UI image tag, `nemotron3-launchpad-proxy`, so the UI can load under the VS Code Code Server port proxy path. This keeps the shared Brev UI image unchanged.
-
-The LaunchPad override also places a small nginx shim on host port `3001`. It forwards to the UI container, sets a clean upstream host header, and rewrites root-relative Next.js asset URLs so the VS Code **Ports** tab path works.
-
-Build the LaunchPad UI image locally once if staff have not already published it:
-
-```bash
-bash launchpad/build-launchpad-ui.sh
-```
-
-To publish it for other LaunchPad users, run the same script with `--push` after setting `GHCR_USER` and `GHCR_TOKEN`.
-
-Pull any missing prebuilt application images and NIM images:
-
-```bash
-docker compose --env-file .env.launchpad \
-  -f deploy/compose/docker-compose.yaml \
-  -f deploy/compose/docker-compose.ghcr.yaml \
-  -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim pull --policy missing
-```
-
-Start the stack:
-
-```bash
-docker compose --env-file .env.launchpad \
-  -f deploy/compose/docker-compose.yaml \
-  -f deploy/compose/docker-compose.ghcr.yaml \
-  -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim up -d --no-build
-```
-
-The first startup can take a while because the NIM containers download model assets into `MODEL_DIRECTORY`.
-
-Watch progress:
-
-```bash
-docker compose --env-file .env.launchpad \
-  -f deploy/compose/docker-compose.yaml \
-  -f deploy/compose/docker-compose.ghcr.yaml \
-  -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim ps
-```
-
-For detailed logs:
-
-```bash
-docker logs -f nemollm-inference-microservice
-docker logs -f nemo-retriever-embedding-microservice
-docker logs -f nemo-retriever-ranking-microservice
-docker logs -f milvus-standalone
-```
-
-## 7. Check Local Services
-
-Run these checks after Compose shows the containers running:
-
-```bash
-# Nemotron 3 Nano LLM NIM
-curl -fsS http://127.0.0.1:8000/v1/health/ready
-curl -s http://127.0.0.1:8000/v1/models | jq .
-curl -sS http://127.0.0.1:8000/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "model": "nvidia/nemotron-3-nano-30b-a3b",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Answer in one short sentence: is this local NIM reachable?"
-      }
-    ],
-    "max_tokens": 64,
-    "temperature": 0
-  }' | jq -r '.choices[0].message.content'
-curl -sS http://127.0.0.1:8000/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "model": "nvidia/nemotron-3-nano-30b-a3b",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Use the lookup_order tool for order A123."
-      }
-    ],
-    "tools": [
-      {
-        "type": "function",
-        "function": {
-          "name": "lookup_order",
-          "description": "Look up an order by ID.",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "order_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "order_id"
-            ]
-          }
-        }
-      }
-    ],
-    "tool_choice": "auto",
-    "max_tokens": 128,
-    "temperature": 0
-  }' | jq '.choices[0].message'
-
-# Embedding NIM
-curl -fsS http://127.0.0.1:9080/v1/health/ready
-
-# Reranking NIM. Use /v1/health/ready; /health returns 404.
-curl -fsS http://127.0.0.1:1976/v1/health/ready
-
-# GPU Milvus
-curl -fsS http://127.0.0.1:9091/healthz
-```
-
-The LLM model list should include:
-
-```text
-nvidia/nemotron-3-nano-30b-a3b
-```
-
-The first chat completion check should print a short model response. The second
-check verifies that OpenAI-compatible tool calling is enabled; the agent requires
-this because it uses LangGraph tools for order and return workflows.
-
-The LaunchPad override starts Nemotron 3 Nano with:
-
-```bash
-NIM_PASSTHROUGH_ARGS=--reasoning-parser nemotron_v3 --enable-auto-tool-choice --tool-call-parser qwen3_coder
-```
-
-`nemotron_v3` parses the model reasoning format, while `qwen3_coder` parses
-OpenAI-compatible tool calls for the Nemotron 3 Nano vLLM examples.
-
-If health and models pass but chat completion or tool-choice requests fail,
-inspect the LLM NIM logs before moving on:
-
-```bash
-docker logs nemollm-inference-microservice --tail=200
-```
-
-Check application containers:
-
-```bash
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-```
-
-The unstructured retriever host debug endpoint is `http://127.0.0.1:18086` on LaunchPad because port `8086` is commonly occupied by InfluxDB.
-
-## 8. Open The Sample UI
-
-Return to the LaunchPad page and open the forwarded URL for port `3001`. This opens the sample AI Virtual Assistant UI.
+In the Code Server IDE, open the **Ports** tab next to the **Terminal** tab. Find port `3001` and open its forwarded URL. This opens the sample AI Virtual Assistant UI.
 
 The LaunchPad UI image is patched to support the VS Code **Ports** tab URL, including paths like:
 
@@ -346,40 +107,11 @@ If you are using the LaunchPad browser desktop, you can also open:
 http://127.0.0.1:3001/
 ```
 
-If port `3001` is not healthy yet, wait another minute and refresh the LaunchPad port list. The app waits on local NIM and database services during startup.
+If port `3001` is not listed or is not healthy yet, wait another minute and refresh the **Ports** tab. The app waits on local NIM and database services during startup.
 
-## 9. Ingest The Sample Data
+After ingestion finishes, try the suggested customer-service questions in the UI.
 
-Before asking data-backed questions, ingest the sample data.
-
-Open the notebook:
-
-```text
-notebooks/ingest_data.ipynb
-```
-
-If the instance was prepared with `launchpad/setup-notebook-kernel.sh`, VS Code should automatically use the `AIVA LaunchPad` kernel. If VS Code asks you to choose a kernel, select:
-
-```text
-AIVA LaunchPad
-```
-
-If you prepared **Resources > Jupyter Notebook** with `launchpad/setup-managed-jupyter.sh`, open:
-
-```text
-ai-virtual-assistant/notebooks/ingest_data.ipynb
-```
-
-and select the same `AIVA LaunchPad` kernel.
-
-Run the cells from top to bottom. The notebook loads:
-
-- Product manuals and FAQ documents into GPU-backed Milvus collections
-- Structured customer and order data into Postgres
-
-After ingestion finishes, return to the UI on port `3001` and try the suggested customer-service questions.
-
-## 10. Stop The Stack
+## Optional: Stop The Stack
 
 Stop the containers without deleting model cache or data volumes:
 
@@ -393,176 +125,55 @@ docker compose --env-file .env.launchpad \
 
 ## Quick Troubleshooting
 
-### NIM Containers Take A Long Time
+For staff setup and operator-level recovery, see [SETUP.md](./SETUP.md). The items below are the common participant-facing issues.
 
-The first run downloads model assets to `MODEL_DIRECTORY`. Watch the NIM logs and leave the terminal open until health checks pass.
+### Prepared Files Are Missing
 
-### Nemotron 3 Nano Exits During Startup
+This guide assumes staff completed [SETUP.md](./SETUP.md). If `~/ai-virtual-assistant`, `notebooks/ai_virtual_assistant_notebook_launchpad.ipynb`, or the `AIVA LaunchPad` kernel is missing, ask staff to rerun the setup handoff steps.
 
-If Compose reports `container nemollm-inference-microservice exited (0)`, inspect the LLM NIM logs before restarting:
+### Opened The Jupyter Notebook Resource By Mistake
+
+Use **Resources > Code Server IDE** for this lab. The LaunchPad **Jupyter Notebook** resource is commonly backed by an automatically managed `lp-jupyter-notebook:24.04` container, so its terminal may show a root prompt such as `#` but still not be the host shell that owns Docker, GPUs, and VS Code port forwarding.
+
+Open **Resources > Code Server IDE**, use the repo at `~/ai-virtual-assistant`, and use the VS Code **Ports** tab to open port `3001`.
+
+### Deployment Notebook Prompts For An NGC Key
+
+Use the temporary lab key provided by staff. It should be an NGC personal key with access to **NGC Catalog** and **NVIDIA Private Registry**. Do not use a hosted NVIDIA API Catalog key, and do not paste the key into chat or screenshots.
+
+### Deployment Takes A Long Time
+
+The first startup can still take a while if local NIM model assets were not fully warmed before handoff. Let the deployment notebook cell continue running. If it appears stuck for a long time, ask staff to check the NIM container logs.
+
+### Port 3001 Is Missing Or Not Healthy
+
+The app waits for the local NIM and database services during startup. Wait another minute, refresh the VS Code **Ports** tab, and rerun the deployment notebook status cell. If port `3001` still does not appear, ask staff to check Docker Compose status.
+
+### UI Is Up But Answers Are Not Data-Backed
+
+Run `notebooks/ingest_data.ipynb` and wait for ingestion to finish. The application UI can open before Milvus and Postgres contain the sample manuals, products, customers, and orders.
+
+### UI Returns A Generic Fallback Message
+
+If the assistant responds with a generic message such as `I wasn't able to process your input`, ask staff to check the agent logs. This usually points to a backend startup, local NIM readiness, or tool-calling configuration issue.
+
+### Staff Checks
+
+Staff can run these from a Code Server terminal:
 
 ```bash
+docker compose --env-file .env.launchpad \
+  -f deploy/compose/docker-compose.yaml \
+  -f deploy/compose/docker-compose.ghcr.yaml \
+  -f launchpad/docker-compose.launchpad.yaml \
+  --profile local-nim ps
+
+docker logs agent-chain-server --tail=200
 docker logs nemollm-inference-microservice --tail=200
-```
-
-Also confirm the NGC key was updated and that the model cache is writable:
-
-```bash
-grep -E '^(NGC_API_KEY|MODEL_DIRECTORY|USERID|NEMOTRON3_NANO_NIM_TAG|LLM_MS_GPU_ID)=' .env.launchpad
-ls -ld /home/nvidia/.cache/nim
-df -h /home/nvidia/.cache/nim
 nvidia-smi
 ```
 
-Do not paste the full `NGC_API_KEY` into chat or screenshots. If the logs show an auth or entitlement error, replace `NGC_API_KEY` with an NGC personal API key that can access NIM containers and model assets. If the logs show another process using GPU memory, stop only workloads that belong to your lab session or ask staff for help.
-
-After correcting the issue, restart the LLM NIM first:
-
-```bash
-docker compose --env-file .env.launchpad \
-  -f deploy/compose/docker-compose.yaml \
-  -f deploy/compose/docker-compose.ghcr.yaml \
-  -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim up -d nemollm-inference
-```
-
-When the LLM health check passes, rerun the full `up -d --no-build` command.
-
-### NGC Login Fails
-
-Use an NGC personal API key, not a hosted API Catalog key. The key must have access to NIM containers and model assets.
-
-### The UI Is Up But Answers Are Not Data-Backed
-
-Run `notebooks/ingest_data.ipynb` and wait for ingestion to finish. The application UI can open before Milvus and Postgres contain the sample data.
-
-To confirm that the product manuals are actually searchable, query the
-unstructured retriever directly:
-
-```bash
-curl -s http://127.0.0.1:18086/documents | jq .
-
-curl -sS http://127.0.0.1:18086/search \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "query": "RTX 4080 Super installation PCI Express power connector",
-    "top_k": 8
-  }' | jq '.chunks[] | {filename, score, content: (.content[:300])}'
-```
-
-The search results should include chunks from the GeForce RTX 4080 SUPER user
-guide or quick-start guide. If they do not, rerun the manual-ingestion cells in
-`notebooks/ingest_data.ipynb`.
-
-### The UI Returns A Generic Fallback Message
-
-If the assistant responds with a generic message such as `I wasn't able to process your input`, check the agent logs:
-
-```bash
-docker logs agent-chain-server --tail=200
-```
-
-### Managed Jupyter Terminal Cannot See Docker
-
-If the LaunchPad Jupyter terminal shows a root prompt such as `#`, it is running inside the platform `lp-jupyter-notebook:24.04` container. That is expected. To make that terminal useful for Docker Compose and logs, run this once from Code Server or WebSSH:
-
-```bash
-bash launchpad/setup-managed-jupyter.sh
-```
-
-Then refresh **Resources > Jupyter Notebook**. New Jupyter terminals should be able to run:
-
-```bash
-docker ps
-docker compose version
-docker logs -f nemollm-inference-microservice
-```
-
-Use Code Server or WebSSH when you need a true host shell for commands such as `nvidia-smi` or direct host filesystem inspection.
-
-If the logs show this error:
-
-```text
-"auto" tool choice requires --enable-auto-tool-choice and --tool-call-parser to be set
-```
-
-recreate the Nemotron 3 Nano NIM so it picks up the LaunchPad
-`NIM_PASSTHROUGH_ARGS` setting, then recreate the agent and API gateway:
-
-```bash
-grep -q '^NIM_PASSTHROUGH_ARGS=' .env.launchpad \
-  && sed -i 's#^NIM_PASSTHROUGH_ARGS=.*#NIM_PASSTHROUGH_ARGS=--reasoning-parser nemotron_v3 --enable-auto-tool-choice --tool-call-parser qwen3_coder#' .env.launchpad \
-  || printf '\nNIM_PASSTHROUGH_ARGS=--reasoning-parser nemotron_v3 --enable-auto-tool-choice --tool-call-parser qwen3_coder\n' >> .env.launchpad
-
-docker compose --env-file .env.launchpad \
-  -f deploy/compose/docker-compose.yaml \
-  -f deploy/compose/docker-compose.ghcr.yaml \
-  -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim up -d --no-build --force-recreate nemollm-inference
-
-curl -fsS http://127.0.0.1:8000/v1/health/ready
-
-docker compose --env-file .env.launchpad \
-  -f deploy/compose/docker-compose.yaml \
-  -f deploy/compose/docker-compose.ghcr.yaml \
-  -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim up -d --no-build --force-recreate agent-chain-server api-gateway-server
-```
-
-If the logs show `Graph Timeout Error`, increase `GRAPH_TIMEOUT_IN_SEC` in `.env.launchpad` and restart the agent and API gateway:
-
-```bash
-GRAPH_TIMEOUT_IN_SEC=120
-```
-
-```bash
-docker compose --env-file .env.launchpad \
-  -f deploy/compose/docker-compose.yaml \
-  -f deploy/compose/docker-compose.ghcr.yaml \
-  -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim up -d --no-build --force-recreate agent-chain-server api-gateway-server
-```
-
-The LaunchPad default is `120` seconds because local Nemotron 3 Nano can take longer than hosted NIMs for the first full agent turn.
-
-### Milvus Fails After Switching From CPU To GPU
-
-CPU and GPU index choices are stored with the Milvus collections. If you previously used the CPU Compose path, reset the Milvus data and re-ingest.
-
-This deletes local vector data:
-
-```bash
-docker compose --env-file .env.launchpad \
-  -f deploy/compose/docker-compose.yaml \
-  -f deploy/compose/docker-compose.ghcr.yaml \
-  -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim down
-
-rm -rf deploy/compose/volumes/milvus \
-  deploy/compose/volumes/minio \
-  deploy/compose/volumes/etcd
-```
-
-Then start Compose again and rerun ingestion.
-
-### GPU Out Of Memory
-
-Confirm the split layout:
-
-```bash
-docker inspect nemollm-inference-microservice \
-  --format '{{json .HostConfig.DeviceRequests}}' | jq .
-docker inspect milvus-standalone \
-  --format '{{json .HostConfig.DeviceRequests}}' | jq .
-```
-
-If another process is using GPU memory, stop it or ask staff to reset the instance.
-
-### Build Locally Instead Of Using GHCR
-
-The lab defaults to prebuilt GHCR app images for faster startup. Rebuild and push new images only if the application source, Dockerfiles, or Python/Node dependencies change, or if you want a clearer LaunchPad-specific GHCR tag.
-
-To build app containers locally, omit `deploy/compose/docker-compose.ghcr.yaml` and remove `--no-build` from the `up` command.
+If tool-calling errors mention `--enable-auto-tool-choice` or `--tool-call-parser`, confirm `.env.launchpad` still contains the default `NIM_PASSTHROUGH_ARGS` from `launchpad/.env.example` and recreate the Nemotron and agent containers.
 
 ## References
 
