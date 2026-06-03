@@ -82,6 +82,16 @@ bash launchpad/prepare-launchpad-instance.sh \
 
 Run `bash launchpad/prepare-launchpad-instance.sh --help` for all options, including `--skip-pull`, `--skip-manuals`, and `--timeout`.
 
+If a later notebook run fails with `failed to bind host port 0.0.0.0:9000/tcp: address already allocated`, a previous stack is still running or partially running. Stop it before rerunning the notebook:
+
+```bash
+docker compose --env-file .env.launchpad \
+  -f deploy/compose/docker-compose.yaml \
+  -f deploy/compose/docker-compose.ghcr.yaml \
+  -f launchpad/docker-compose.launchpad.yaml \
+  --profile local-nim down --remove-orphans
+```
+
 ## 3. Copy The LaunchPad Notebook
 
 Copy the LaunchPad deployment notebook next to the ingestion notebook so participants can move from one notebook to the next in the same folder:

@@ -14,7 +14,7 @@ Options:
   --ngc-api-key KEY          Alias for --api-key.
   --nvidia-api-key KEY       Alias for --api-key.
   --warm                     Start the full stack once to warm local NIM assets.
-  --stop-after-warm          Stop the stack after warm-up succeeds.
+  --stop-after-warm          Stop the stack after warm-up, including on failure.
   --skip-pull                Skip docker compose pull.
   --skip-manuals             Skip sample manual download.
   --skip-kernel              Skip AIVA LaunchPad kernel setup.
@@ -77,6 +77,7 @@ SKIP_PULL=0
 SKIP_MANUALS=0
 SKIP_KERNEL=0
 HEALTH_TIMEOUT=3600
+CLEANUP_STACK_ON_EXIT=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -150,6 +151,13 @@ COMPOSE_CMD=(
   --profile local-nim
 )
 
+cleanup_stack() {
+  if (( CLEANUP_STACK_ON_EXIT == 1 )); then
+    log "Stopping the stack because --stop-after-warm was requested"
+    "${COMPOSE_CMD[@]}" down --remove-orphans || true
+  fi
+}
+
 log "Copying LaunchPad deployment notebook into notebooks/"
 cp deploy/ai_virtual_assistant_notebook_launchpad.ipynb \
   notebooks/ai_virtual_assistant_notebook_launchpad.ipynb
@@ -199,6 +207,12 @@ if (( WARM_STACK == 1 )); then
   if [[ "${AIVA_BUILD_LAUNCHPAD_UI:-0}" == "1" ]]; then
     bash launchpad/build-launchpad-ui.sh
   fi
+
+  if (( STOP_AFTER_WARM == 1 )); then
+    CLEANUP_STACK_ON_EXIT=1
+    trap cleanup_stack EXIT
+  fi
+
   "${COMPOSE_CMD[@]}" up -d --no-build
 
   log "Waiting for warm-up health checks"
@@ -212,7 +226,9 @@ if (( WARM_STACK == 1 )); then
 
   if (( STOP_AFTER_WARM == 1 )); then
     log "Stopping the stack after warm-up"
-    "${COMPOSE_CMD[@]}" down
+    "${COMPOSE_CMD[@]}" down --remove-orphans
+    CLEANUP_STACK_ON_EXIT=0
+    trap - EXIT
   fi
 else
   log "Skipping full-stack warm-up"
