@@ -226,10 +226,10 @@ docker compose --env-file .env.launchpad \
   --profile local-nim down
 ```
 
-To reset participant data and local secrets, remove the bind-mounted service data directories and restore the template env file:
+To reset participant data and local secrets, remove the bind-mounted service data directories and restore the template env file. Use `sudo` for the service data directories because Postgres, pgAdmin, Redis, MinIO, etcd, and Milvus may create files owned by container users instead of the `nvidia` user:
 
 ```bash
-rm -rf deploy/compose/volumes/postgres_data \
+sudo rm -rf deploy/compose/volumes/postgres_data \
   deploy/compose/volumes/pgadmin \
   deploy/compose/volumes/redis-data \
   deploy/compose/volumes/etcd \
@@ -270,7 +270,7 @@ If the instance should be returned to a near-stock LaunchPad state, remove the r
 
 ```bash
 cd ~
-rm -rf ~/ai-virtual-assistant
+sudo rm -rf ~/ai-virtual-assistant
 ```
 
 ## Notes On Secrets
