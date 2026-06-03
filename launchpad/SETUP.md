@@ -206,9 +206,17 @@ Use the `AIVA LaunchPad` kernel when prompted.
 
 The sample UI is available from the Code Server **Ports** tab next to the **Terminal** tab. Open port `3001`.
 
-## Notes On Secrets
+## 11. Teardown / Reset After The Lab
 
-If the staff NGC key must not be shared with participants, do not leave the stack running with that key and do not leave the real key in `.env.launchpad`. You can still pre-pull images and warm the model cache, then stop the stack and replace `.env.launchpad` with the template before handoff:
+Run teardown commands from the repo root:
+
+```bash
+cd ~/ai-virtual-assistant
+```
+
+If the stack is running with a staff NGC key, stop the containers before resetting `.env.launchpad`. Running containers retain their environment values until they are recreated.
+
+Stop the lab stack while keeping pulled Docker images, warmed NIM model assets, and bind-mounted service data:
 
 ```bash
 docker compose --env-file .env.launchpad \
@@ -216,10 +224,55 @@ docker compose --env-file .env.launchpad \
   -f deploy/compose/docker-compose.ghcr.yaml \
   -f launchpad/docker-compose.launchpad.yaml \
   --profile local-nim down
+```
 
+To reset participant data and local secrets, remove the bind-mounted service data directories and restore the template env file:
+
+```bash
+rm -rf deploy/compose/volumes/postgres_data \
+  deploy/compose/volumes/pgadmin \
+  deploy/compose/volumes/redis-data \
+  deploy/compose/volumes/etcd \
+  deploy/compose/volumes/minio \
+  deploy/compose/volumes/milvus
+
+rm -f notebooks/ai_virtual_assistant_notebook_launchpad.ipynb
 cp launchpad/.env.example .env.launchpad
 chmod 600 .env.launchpad
 docker logout nvcr.io
 ```
 
-Participants can then enter their own NGC key in the copied `notebooks/ai_virtual_assistant_notebook_launchpad.ipynb`.
+This removes participant-ingested Postgres, Redis, MinIO, Milvus, and related state. `docker compose down -v` is not enough for this stack because these paths are bind-mounted directories.
+
+Verify the reset:
+
+```bash
+docker ps --format 'table {{.Names}}\t{{.Status}}'
+test -f deploy/ai_virtual_assistant_notebook_launchpad.ipynb
+test -f notebooks/ingest_data.ipynb
+test ! -f notebooks/ai_virtual_assistant_notebook_launchpad.ipynb
+```
+
+Optional deeper cleanup, only if the instance is being retired or disk space matters more than the next lab startup time:
+
+```bash
+rm -rf ~/.cache/nim
+docker compose --env-file .env.launchpad \
+  -f deploy/compose/docker-compose.yaml \
+  -f deploy/compose/docker-compose.ghcr.yaml \
+  -f launchpad/docker-compose.launchpad.yaml \
+  --profile local-nim config --images | sort -u
+```
+
+Review the image list before removing images with `docker rmi <image>`. Removing the NIM and application images means the next staff setup will need to pull them again.
+
+If the instance should be returned to a near-stock LaunchPad state, remove the repo clone last:
+
+```bash
+cd ~
+rm -rf ~/ai-virtual-assistant
+```
+
+## Notes On Secrets
+
+If the staff NGC key must not be shared with participants, do not leave the stack running with that key and do not leave the real key in `.env.launchpad`. The deployment notebook reuses a prepared `.env.launchpad` key when present; if `.env.launchpad` has the template placeholder instead, participants will be prompted for their own key.
