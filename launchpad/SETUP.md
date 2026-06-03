@@ -240,6 +240,14 @@ Participants will still run `notebooks/ingest_data.ipynb` to load manuals, FAQs,
 
 ## 10. Participant Handoff
 
+Before handoff, open the LaunchPad notebook that was copied from [`deploy/ai_virtual_assistant_notebook_launchpad.ipynb`](../deploy/ai_virtual_assistant_notebook_launchpad.ipynb):
+
+```text
+notebooks/ai_virtual_assistant_notebook_launchpad.ipynb
+```
+
+Click the **Select Kernel** button on the upper right of the notebook. If VS Code prompts to install or enable the suggested **Python + Jupyter** extensions, install or enable them, then reload the browser tab. This confirms participants will be able to select the `AIVA LaunchPad` kernel.
+
 Tell participants to open:
 
 ```text
