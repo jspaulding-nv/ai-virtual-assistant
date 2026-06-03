@@ -57,7 +57,7 @@ Open this notebook:
 notebooks/ai_virtual_assistant_notebook_launchpad.ipynb
 ```
 
-Run the cells from top to bottom. If VS Code asks you to choose a kernel, select **Select Another Kernel...** > **Jupyter Kernel...** > `AIVA LaunchPad`. If it does not appear, reload the browser tab and reopen the notebook.
+Run the cells from top to bottom. If VS Code asks you to choose a kernel, choose `AIVA LaunchPad` when it appears. Depending on the VS Code/kernel picker state, it may be under **Select Another Kernel...** > **Jupyter Kernel...** or under **Python Environments...**. If no Python or Jupyter kernel options are available, install or enable the suggested **Python + Jupyter** extensions, then reload the browser tab and reopen the notebook.
 
 The notebook will:
 
@@ -78,7 +78,7 @@ After the deployment notebook starts the services, open:
 notebooks/ingest_data.ipynb
 ```
 
-Use **Select Another Kernel...** > **Jupyter Kernel...** > `AIVA LaunchPad` when prompted, then run the cells from top to bottom.
+Choose `AIVA LaunchPad` when prompted, then run the cells from top to bottom. Depending on the VS Code/kernel picker state, it may be under **Select Another Kernel...** > **Jupyter Kernel...** or under **Python Environments...**.
 
 The ingestion notebook loads:
 
