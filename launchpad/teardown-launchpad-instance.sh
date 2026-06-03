@@ -24,7 +24,7 @@ Options:
   --keep-env            Do not reset .env.launchpad or docker logout nvcr.io.
   --keep-notebook       Keep notebooks/ai_virtual_assistant_notebook_launchpad.ipynb.
   --remove-nim-cache    Remove /home/nvidia/.cache/nim or $MODEL_DIRECTORY.
-  --remove-images       Remove Docker images referenced by the LaunchPad Compose config.
+  --remove-images       Remove LaunchPad Compose images and known AIVA legacy/local images.
   --remove-repo         Remove the repository clone last. Implies --remove-nim-cache and --remove-images.
   --env-file FILE       Compose env file. Default: .env.launchpad.
   -h, --help            Show this help.
@@ -187,6 +187,59 @@ fi
 
 IMAGE_LIST_FILE="/tmp/aiva-launchpad-images.txt"
 
+env_value() {
+  local key="$1"
+  local default_value="$2"
+  local value=""
+
+  if [[ -f "${ENV_FILE}" ]]; then
+    value="$(awk -F= -v key="${key}" '$1 == key {print $2}' "${ENV_FILE}" | tail -n 1 | sed 's/^"//; s/"$//')"
+  fi
+
+  if [[ -z "${value}" && -f "launchpad/.env.example" ]]; then
+    value="$(awk -F= -v key="${key}" '$1 == key {print $2}' "launchpad/.env.example" | tail -n 1 | sed 's/^"//; s/"$//')"
+  fi
+
+  printf '%s\n' "${value:-${default_value}}"
+}
+
+append_if_image_exists() {
+  local image="$1"
+
+  if docker image inspect "${image}" >/dev/null 2>&1; then
+    printf '%s\n' "${image}" >> "${IMAGE_LIST_FILE}"
+  fi
+}
+
+append_known_aiva_images() {
+  local ghcr_owner
+  local ghcr_prefix
+  local ghcr_tag
+  local launchpad_ui_tag
+
+  ghcr_owner="$(env_value GHCR_OWNER jspaulding-nv)"
+  ghcr_prefix="$(env_value GHCR_IMAGE_PREFIX aiva-customer-service)"
+  ghcr_tag="$(env_value GHCR_TAG nemotron3-milvus-cpu)"
+  launchpad_ui_tag="$(env_value LAUNCHPAD_UI_TAG nemotron3-launchpad-proxy)"
+
+  append_if_image_exists "aiva-customer-service-ui-icon-fallback:local"
+
+  append_if_image_exists "ghcr.io/${ghcr_owner}/${ghcr_prefix}-agent:${ghcr_tag}"
+  append_if_image_exists "ghcr.io/${ghcr_owner}/${ghcr_prefix}-api-gateway:${ghcr_tag}"
+  append_if_image_exists "ghcr.io/${ghcr_owner}/${ghcr_prefix}-ui:${ghcr_tag}"
+  append_if_image_exists "ghcr.io/${ghcr_owner}/${ghcr_prefix}-ui:${launchpad_ui_tag}"
+  append_if_image_exists "ghcr.io/${ghcr_owner}/${ghcr_prefix}-analytics:${ghcr_tag}"
+  append_if_image_exists "ghcr.io/${ghcr_owner}/${ghcr_prefix}-structured-retriever:${ghcr_tag}"
+  append_if_image_exists "ghcr.io/${ghcr_owner}/${ghcr_prefix}-unstructured-retriever:${ghcr_tag}"
+
+  append_if_image_exists "nvcr.io/nvidia/blueprint/aiva-customer-service-agent:1.1.0"
+  append_if_image_exists "nvcr.io/nvidia/blueprint/aiva-customer-service-api-gateway:1.1.0"
+  append_if_image_exists "nvcr.io/nvidia/blueprint/aiva-customer-service-ui:1.1.0"
+  append_if_image_exists "nvcr.io/nvidia/blueprint/aiva-customer-service-analytics:1.1.0"
+  append_if_image_exists "nvcr.io/nvidia/blueprint/aiva-customer-service-structured-retriever:1.1.0"
+  append_if_image_exists "nvcr.io/nvidia/blueprint/aiva-customer-service-unstructured-retriever:1.1.0"
+}
+
 confirm() {
   if (( ASSUME_YES == 1 || DRY_RUN == 1 )); then
     return
@@ -226,10 +279,13 @@ collect_compose_images() {
   log "Collecting Docker images referenced by the LaunchPad Compose config"
   if (( DRY_RUN == 1 )); then
     quote_cmd "${COMPOSE_CMD[@]}" config --images
+    printf '+ collect known AIVA legacy/local images if present\n'
     return
   fi
 
   "${COMPOSE_CMD[@]}" config --images | sort -u > "${IMAGE_LIST_FILE}"
+  append_known_aiva_images
+  sort -u -o "${IMAGE_LIST_FILE}" "${IMAGE_LIST_FILE}"
   cat "${IMAGE_LIST_FILE}"
 }
 

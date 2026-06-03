@@ -357,7 +357,7 @@ xargs -r docker image rm < /tmp/aiva-launchpad-images.txt
 rm -f /tmp/aiva-launchpad-images.txt
 ```
 
-This removes the Docker images referenced by the LaunchPad Compose configuration, including the GHCR application images, local NIM images, Milvus, MinIO, Postgres, Redis, pgAdmin, etcd, nginx, and redis-commander images. It does not remove unrelated LaunchPad images such as `lp-jupyter-notebook:24.04`. Removing these images means the next staff setup will need to pull them again.
+This removes the Docker images referenced by the LaunchPad Compose configuration plus known AIVA legacy/local app image names, including the GHCR application images, original `nvcr.io/nvidia/blueprint/aiva-customer-service-*` app images, local NIM images, Milvus, MinIO, Postgres, Redis, pgAdmin, etcd, nginx, and redis-commander images. It does not remove unrelated LaunchPad images such as `lp-jupyter-notebook:24.04` or unrelated CUDA/base images. Removing these images means the next staff setup will need to pull them again.
 
 If the instance should be returned to a near-stock LaunchPad state, remove the repo clone last:
 
