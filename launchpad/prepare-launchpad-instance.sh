@@ -18,6 +18,7 @@ Options:
   --skip-pull                Skip docker compose pull.
   --skip-manuals             Skip sample manual download.
   --skip-kernel              Skip AIVA LaunchPad kernel setup.
+  --skip-open                Skip opening the LaunchPad notebook in Code Server.
   --timeout SECONDS          Per-service warm-up timeout. Default: 3600.
   -h, --help                 Show this help.
 
@@ -76,6 +77,7 @@ STOP_AFTER_WARM=0
 SKIP_PULL=0
 SKIP_MANUALS=0
 SKIP_KERNEL=0
+SKIP_OPEN=0
 HEALTH_TIMEOUT=3600
 STACK_STARTED=0
 
@@ -105,6 +107,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-kernel)
       SKIP_KERNEL=1
+      shift
+      ;;
+    --skip-open)
+      SKIP_OPEN=1
       shift
       ;;
     --timeout)
@@ -171,6 +177,17 @@ verify_agent_image() {
   fi
   if ! docker run --rm --entrypoint grep "${agent_image}" -q "route_initial_request" /opt/src/agent/main.py; then
     die "Agent image ${agent_image} is stale. It does not contain the LaunchPad product-guide routing path."
+  fi
+}
+
+open_launchpad_notebook() {
+  if command -v code-server >/dev/null 2>&1; then
+    log "Opening LaunchPad notebook in Code Server"
+    if ! code-server notebooks/ai_virtual_assistant_notebook_launchpad.ipynb; then
+      log "Could not auto-open the notebook. Open notebooks/ai_virtual_assistant_notebook_launchpad.ipynb manually."
+    fi
+  else
+    log "code-server command not found. Open notebooks/ai_virtual_assistant_notebook_launchpad.ipynb manually."
   fi
 }
 
@@ -256,6 +273,12 @@ if (( SKIP_MANUALS == 0 )); then
   bash data/download.sh data/list_manuals.txt
 else
   log "Skipping sample manual download"
+fi
+
+if (( SKIP_OPEN == 0 )); then
+  open_launchpad_notebook
+else
+  log "Skipping Code Server notebook auto-open"
 fi
 
 log "Prepared LaunchPad instance"
