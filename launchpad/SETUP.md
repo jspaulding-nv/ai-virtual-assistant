@@ -82,6 +82,8 @@ bash launchpad/prepare-launchpad-instance.sh \
 
 Run `bash launchpad/prepare-launchpad-instance.sh --help` for all options, including `--skip-pull`, `--skip-manuals`, and `--timeout`.
 
+The helper verifies that the pulled `agent-chain-server` image contains the LaunchPad product-guide routing fix. If it reports a stale agent image, rebuild and push the GHCR app images from the current source or update `GHCR_TAG` to a freshly published tag before preparing participant instances.
+
 If a later notebook run fails with a host-port bind error, a previous stack is still running or partially running. Stop it before rerunning the notebook:
 
 ```bash
@@ -162,7 +164,7 @@ docker compose --env-file .env.launchpad \
   -f deploy/compose/docker-compose.yaml \
   -f deploy/compose/docker-compose.ghcr.yaml \
   -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim pull --policy missing
+  --profile local-nim pull --policy always
 ```
 
 The LaunchPad UI image is already published to GHCR as:
@@ -258,7 +260,7 @@ notebooks/ingest_data.ipynb
 
 Use the `AIVA LaunchPad` kernel when prompted.
 
-The sample UI is available from the Code Server **Ports** tab next to the **Terminal** tab. Open port `3001`.
+The sample UI is available from the Code Server **Ports** tab next to the **Terminal** tab. If port `3001` is not listed automatically, click **Add Port**, enter `3001`, and open the forwarded URL.
 
 ## 11. Teardown / Reset After The Lab
 
@@ -277,7 +279,7 @@ docker compose --env-file .env.launchpad \
   -f deploy/compose/docker-compose.yaml \
   -f deploy/compose/docker-compose.ghcr.yaml \
   -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim down
+  --profile local-nim down --remove-orphans
 ```
 
 To reset participant data and local secrets, remove the bind-mounted service data directories and restore the template env file. Use `sudo` for the service data directories because Postgres, pgAdmin, Redis, MinIO, etcd, and Milvus may create files owned by container users instead of the `nvidia` user:
@@ -311,14 +313,19 @@ Optional deeper cleanup, only if the instance is being retired or disk space mat
 
 ```bash
 rm -rf ~/.cache/nim
+
 docker compose --env-file .env.launchpad \
   -f deploy/compose/docker-compose.yaml \
   -f deploy/compose/docker-compose.ghcr.yaml \
   -f launchpad/docker-compose.launchpad.yaml \
-  --profile local-nim config --images | sort -u
+  --profile local-nim config --images | sort -u > /tmp/aiva-launchpad-images.txt
+
+cat /tmp/aiva-launchpad-images.txt
+xargs -r docker image rm < /tmp/aiva-launchpad-images.txt
+rm -f /tmp/aiva-launchpad-images.txt
 ```
 
-Review the image list before removing images with `docker rmi <image>`. Removing the NIM and application images means the next staff setup will need to pull them again.
+This removes the Docker images referenced by the LaunchPad Compose configuration, including the GHCR application images, local NIM images, Milvus, MinIO, Postgres, Redis, pgAdmin, etcd, nginx, and redis-commander images. It does not remove unrelated LaunchPad images such as `lp-jupyter-notebook:24.04`. Removing these images means the next staff setup will need to pull them again.
 
 If the instance should be returned to a near-stock LaunchPad state, remove the repo clone last:
 

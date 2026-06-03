@@ -87,7 +87,7 @@ The ingestion notebook loads:
 
 ## 4. Open The Sample UI
 
-In the Code Server IDE, open the **Ports** tab next to the **Terminal** tab. Find port `3001` and open its forwarded URL. This opens the sample AI Virtual Assistant UI.
+In the Code Server IDE, open the **Ports** tab next to the **Terminal** tab. If port `3001` is listed, open its forwarded URL. If it is not listed, click **Add Port**, enter `3001`, and then open the forwarded URL. This opens the sample AI Virtual Assistant UI.
 
 The LaunchPad UI image is patched to support the VS Code **Ports** tab URL, including paths like:
 
@@ -107,7 +107,9 @@ If you are using the LaunchPad browser desktop, you can also open:
 http://127.0.0.1:3001/
 ```
 
-If port `3001` is not listed or is not healthy yet, wait another minute and refresh the **Ports** tab. The app waits on local NIM and database services during startup.
+VS Code may not automatically detect Docker-published ports, so manually adding port `3001` is expected.
+
+If port `3001` is not healthy yet, wait another minute and refresh the **Ports** tab. The app waits on local NIM and database services during startup.
 
 After ingestion finishes, try the suggested customer-service questions in the UI.
 
@@ -147,11 +149,51 @@ The first startup can still take a while if local NIM model assets were not full
 
 ### Port 3001 Is Missing Or Not Healthy
 
-The app waits for the local NIM and database services during startup. Wait another minute, refresh the VS Code **Ports** tab, and rerun the deployment notebook status cell. If port `3001` still does not appear, ask staff to check Docker Compose status.
+VS Code may not automatically detect Docker-published ports. In the **Ports** tab, click **Add Port**, enter `3001`, and open the forwarded URL.
+
+If VS Code reports that port auto-forwarding switched to `hybrid`, that is expected for this Compose stack because many services expose ports. Hybrid mode may skip `3001` until you add it manually.
+
+If port `3001` is not healthy yet, wait another minute, refresh the VS Code **Ports** tab, and rerun the deployment notebook status cell. If the manually added port still does not open, ask staff to check Docker Compose status.
 
 ### UI Is Up But Answers Are Not Data-Backed
 
 Run `notebooks/ingest_data.ipynb` and wait for ingestion to finish. The application UI can open before Milvus and Postgres contain the sample manuals, products, customers, and orders.
+
+If the known product-manual question still gives a generic "I do not have instructions" response after ingestion, ask staff to confirm that the current GHCR app images were pulled and recreated. Reused image tags require an explicit pull, not only a "missing image" pull:
+
+```bash
+docker compose --env-file .env.launchpad \
+  -f deploy/compose/docker-compose.yaml \
+  -f deploy/compose/docker-compose.ghcr.yaml \
+  -f launchpad/docker-compose.launchpad.yaml \
+  --profile local-nim pull --policy always
+
+docker compose --env-file .env.launchpad \
+  -f deploy/compose/docker-compose.yaml \
+  -f deploy/compose/docker-compose.ghcr.yaml \
+  -f launchpad/docker-compose.launchpad.yaml \
+  --profile local-nim up -d --no-build --force-recreate
+```
+
+Then click **End Chat Session** in the UI and ask the product-manual question again.
+
+Staff can also confirm whether the running agent image contains the product-guide routing fix:
+
+```bash
+docker exec agent-chain-server grep -n "PRODUCT_QA_TERMS" /opt/src/agent/main.py
+docker exec agent-chain-server grep -n "route_initial_request" /opt/src/agent/main.py
+```
+
+Confirm that the manuals were ingested and that Milvus can retrieve the 4080 SUPER guide:
+
+```bash
+curl -s http://127.0.0.1:18086/documents | python3 -m json.tool | grep -i 4080
+
+curl -s -X POST http://127.0.0.1:18086/search \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"How do I install the RTX 4080 SUPER card?","top_k":8}' \
+  | python3 -m json.tool
+```
 
 ### UI Returns A Generic Fallback Message
 

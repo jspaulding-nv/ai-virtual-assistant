@@ -158,6 +158,21 @@ cleanup_stack() {
   fi
 }
 
+verify_agent_image() {
+  local agent_image
+  agent_image="$("${COMPOSE_CMD[@]}" config --images | grep -E '(^|/)[^[:space:]]*-agent:' | head -n 1 || true)"
+
+  [[ -n "${agent_image}" ]] || die "Could not resolve the agent image from Docker Compose config."
+
+  log "Verifying agent image contains product-guide routing fixes"
+  if ! docker run --rm --entrypoint grep "${agent_image}" -q "PRODUCT_QA_TERMS" /opt/src/agent/main.py; then
+    die "Agent image ${agent_image} is stale. Rebuild and push the GHCR app images from the current source, or update GHCR_TAG to a freshly published tag."
+  fi
+  if ! docker run --rm --entrypoint grep "${agent_image}" -q "route_initial_request" /opt/src/agent/main.py; then
+    die "Agent image ${agent_image} is stale. It does not contain the LaunchPad product-guide routing path."
+  fi
+}
+
 log "Copying LaunchPad deployment notebook into notebooks/"
 cp deploy/ai_virtual_assistant_notebook_launchpad.ipynb \
   notebooks/ai_virtual_assistant_notebook_launchpad.ipynb
@@ -196,11 +211,13 @@ log "Validating Docker Compose configuration"
 "${COMPOSE_CMD[@]}" config >/dev/null
 
 if (( SKIP_PULL == 0 )); then
-  log "Pulling missing Docker images"
-  "${COMPOSE_CMD[@]}" pull --policy missing
+  log "Pulling current Docker images"
+  "${COMPOSE_CMD[@]}" pull --policy always
 else
   log "Skipping Docker image pull"
 fi
+
+verify_agent_image
 
 if (( WARM_STACK == 1 )); then
   log "Starting the full stack to warm local NIM assets"
