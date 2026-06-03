@@ -48,6 +48,40 @@ test -f deploy/ai_virtual_assistant_notebook_launchpad.ipynb
 test -f notebooks/ingest_data.ipynb
 ```
 
+## Optional Automation For Repeated Instance Prep
+
+The rest of this guide stays as the manual setup process. If you are preparing many LaunchPad instances, run the helper script after cloning or refreshing the repo. It automates steps 3 through 9: copying the notebook, preparing the kernel, writing `.env.launchpad`, logging in to `nvcr.io`, pulling images, optionally warming the full stack, and downloading sample manuals.
+
+The LaunchPad path uses local NIM containers, so the temporary NVIDIA personal key is written to `.env.launchpad` as `NGC_API_KEY`.
+
+Minimum prep, which copies files, configures the kernel, writes `.env.launchpad`, logs in to `nvcr.io`, pulls images, and downloads manuals:
+
+```bash
+cd ~/ai-virtual-assistant
+bash launchpad/prepare-launchpad-instance.sh \
+  --api-key '<temporary-nvidia-personal-key>'
+```
+
+Full prep, which also starts the stack once so local NIM model assets can download into `/home/nvidia/.cache/nim`:
+
+```bash
+cd ~/ai-virtual-assistant
+bash launchpad/prepare-launchpad-instance.sh \
+  --api-key '<temporary-nvidia-personal-key>' \
+  --warm
+```
+
+If you want to warm the model cache but hand participants a stopped stack, add `--stop-after-warm`:
+
+```bash
+bash launchpad/prepare-launchpad-instance.sh \
+  --api-key '<temporary-nvidia-personal-key>' \
+  --warm \
+  --stop-after-warm
+```
+
+Run `bash launchpad/prepare-launchpad-instance.sh --help` for all options, including `--skip-pull`, `--skip-manuals`, and `--timeout`.
+
 ## 3. Copy The LaunchPad Notebook
 
 Copy the LaunchPad deployment notebook next to the ingestion notebook so participants can move from one notebook to the next in the same folder:
